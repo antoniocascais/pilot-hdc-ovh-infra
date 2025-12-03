@@ -1,0 +1,10 @@
+# Copy to sensitive.yml and fill in values
+ssh_key_path: /tmp/ansible.ovh.ssh
+target_ssh_port: 53729
+ssh_port: 22  # optional override for connection; remove after hardening
+
+nginx_hosts:
+  dev:
+    ip: 1.2.3.4
+  prod:
+    ip: 5.6.7.8

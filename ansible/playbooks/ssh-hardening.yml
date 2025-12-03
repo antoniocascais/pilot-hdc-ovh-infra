@@ -1,0 +1,33 @@
+- name: SSH hardening
+  hosts: nginx
+  become: yes
+  tasks:
+    - name: Disable password authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+
+    - name: Disable root login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+
+    - name: Change SSH port
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Port'
+        line: 'Port {{ target_ssh_port }}'
+
+    - name: Stop ssh.socket (systemd socket activation)
+      service:
+        name: ssh.socket
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Restart ssh
+      service:
+        name: ssh
+        state: restarted
