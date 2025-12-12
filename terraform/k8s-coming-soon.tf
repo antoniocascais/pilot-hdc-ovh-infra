@@ -72,8 +72,44 @@ resource "kubernetes_service" "coming_soon" {
     port {
       port        = 80
       target_port = 80
-      node_port   = 30080
     }
-    type = "NodePort"
+    type = "ClusterIP"
+  }
+}
+
+resource "kubernetes_ingress_v1" "coming_soon" {
+  metadata {
+    name      = "coming-soon"
+    namespace = kubernetes_namespace.test.metadata[0].name
+    annotations = {
+      "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+    }
+  }
+
+  spec {
+    ingress_class_name = "nginx"
+
+    tls {
+      hosts       = ["dev.hdc.ebrains.eu"]
+      secret_name = "coming-soon-tls"
+    }
+
+    rule {
+      host = "dev.hdc.ebrains.eu"
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = kubernetes_service.coming_soon.metadata[0].name
+              port {
+                number = 80
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

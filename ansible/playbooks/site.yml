@@ -1,7 +1,6 @@
 ---
 - import_playbook: dns-setup.yml
 - import_playbook: ssh-hardening.yml
-- import_playbook: nginx-setup.yml
+- import_playbook: nginx-stream-passthrough.yml
 - import_playbook: nginx-coming-soon-prod.yml
 - import_playbook: certbot-setup.yml
-- import_playbook: nginx-argocd.yml

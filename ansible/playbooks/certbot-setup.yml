@@ -1,6 +1,7 @@
 ---
 - name: Setup Let's Encrypt TLS
-  hosts: nginx
+  # Only nginx-prod - nginx-dev uses cert-manager inside K8s
+  hosts: nginx-prod
   become: true
   vars_files:
     - ../vars/sensitive.yml

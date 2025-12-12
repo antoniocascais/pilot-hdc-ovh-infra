@@ -1,0 +1,108 @@
+---
+- name: Configure nginx TLS passthrough to ingress-nginx
+  hosts: nginx-dev
+  become: true
+  vars_files:
+    - ../vars/sensitive.yml
+  tasks:
+    - name: Install nginx stream module
+      apt:
+        name: libnginx-mod-stream
+        state: present
+        update_cache: yes
+
+    - name: Ensure stream.d directory exists
+      file:
+        path: /etc/nginx/stream.d
+        state: directory
+        mode: '0755'
+
+    - name: Add stream block to nginx.conf
+      blockinfile:
+        path: /etc/nginx/nginx.conf
+        marker: "# {mark} ANSIBLE MANAGED - stream block"
+        insertbefore: "^http {"
+        block: |
+          stream {
+              include /etc/nginx/stream.d/*.conf;
+          }
+      notify: Reload nginx
+
+    - name: Verify stream block was inserted
+      command: grep -q "^stream {" /etc/nginx/nginx.conf
+      changed_when: false
+      failed_when: false
+      register: stream_check
+
+    - name: Fail if stream block not found
+      fail:
+        msg: "Stream block not inserted in nginx.conf. Verify 'http {' pattern exists for insertbefore to match."
+      when: stream_check.rc != 0
+
+    - name: Validate nginx configuration
+      command: nginx -t
+      changed_when: false
+
+    - name: Configure TLS passthrough (port 443)
+      copy:
+        dest: /etc/nginx/stream.d/k8s-https.conf
+        content: |
+          # TODO: Replace with OVH Load Balancer when available
+          # Currently routing directly to K8s nodes with health checks
+          upstream k8s_https {
+          {% for node in nginx_hosts.dev.k8s_nodes %}
+              server {{ node }}:30443 max_fails=3 fail_timeout=30s;
+          {% endfor %}
+          }
+          server {
+              listen 443;
+              listen [::]:443;
+              proxy_pass k8s_https;
+              proxy_timeout 3600s;
+              proxy_connect_timeout 60s;
+          }
+      notify: Reload nginx
+
+    - name: Update HTTP config for passthrough (port 80)
+      copy:
+        dest: /etc/nginx/sites-available/default
+        content: |
+          # TODO: Replace with OVH Load Balancer when available
+          upstream k8s_http {
+          {% for node in nginx_hosts.dev.k8s_nodes %}
+              server {{ node }}:30080 max_fails=3 fail_timeout=30s;
+          {% endfor %}
+          }
+          server {
+              listen 80 default_server;
+              listen [::]:80 default_server;
+              server_name _;
+              location / {
+                  proxy_pass http://k8s_http;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+      notify: Reload nginx
+
+    - name: Ensure default site is enabled
+      file:
+        src: /etc/nginx/sites-available/default
+        dest: /etc/nginx/sites-enabled/default
+        state: link
+      notify: Reload nginx
+
+    - name: Disable old ArgoCD site config
+      file:
+        path: /etc/nginx/sites-enabled/argocd.conf
+        state: absent
+      notify: Reload nginx
+
+  handlers:
+    - name: Reload nginx
+      service:
+        name: nginx
+        state: reloaded

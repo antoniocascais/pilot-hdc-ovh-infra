@@ -36,25 +36,50 @@
         name: "{{ argocd_helm_repo_name }}"
         repo_url: "{{ argocd_helm_repo_url }}"
 
-    - name: Install Argo CD
-      kubernetes.core.helm:
+    - name: Create temp directory for rendered manifests
+      tempfile:
+        state: directory
+        suffix: argocd
+        mode: 0700
+      register: temp_dir
+
+    - name: Render Argo CD Helm templates
+      command: >
+        helm template {{ argocd_release_name }}
+        {{ argocd_helm_repo_name }}/{{ argocd_chart_name }}
+        --version {{ argocd_chart_version }}
+        --namespace {{ argocd_namespace }}
+        --include-crds
+        --values {{ gitops_path }}/values.yaml
+        --output-dir {{ temp_dir.path }}
+
+    - name: Find all rendered manifest files
+      find:
+        paths: "{{ temp_dir.path }}"
+        patterns: "*.yaml"
+        recurse: yes
+      register: manifest_files
+
+    - name: Apply rendered manifests
+      kubernetes.core.k8s:
         kubeconfig: "{{ kubeconfig }}"
-        name: "{{ argocd_release_name }}"
-        chart_ref: "{{ argocd_helm_repo_name }}/{{ argocd_chart_name }}"
-        chart_version: "{{ argocd_chart_version }}"
-        release_namespace: "{{ argocd_namespace }}"
-        values_files:
-          - "{{ gitops_path }}/values.yaml"
-        wait: true
-        timeout: 10m0s
-        atomic: true
+        state: present
+        src: "{{ item.path }}"
+      loop: "{{ manifest_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    - name: Cleanup temp directory
+      file:
+        path: "{{ temp_dir.path }}"
+        state: absent
 
     - name: Wait for Argo CD server to be ready
       kubernetes.core.k8s_info:
         kubeconfig: "{{ kubeconfig }}"
         kind: Deployment
         namespace: "{{ argocd_namespace }}"
-        name: "{{ argocd_release_name }}-server"
+        name: "{{ argocd_release_name }}-argocd-server"
         wait: true
         wait_condition:
           type: Available
