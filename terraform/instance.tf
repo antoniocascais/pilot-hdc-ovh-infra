@@ -1,9 +1,8 @@
 resource "ovh_cloud_project_instance" "nginx" {
-  for_each       = local.environments
   service_name   = var.ovh_project_id
   region         = var.region
   billing_period = "hourly"
-  name           = "nginx-${each.key}"
+  name           = "nginx-${var.env}"
 
   boot_from {
     image_id = var.instance_image_id
@@ -20,16 +19,16 @@ resource "ovh_cloud_project_instance" "nginx" {
   network {
     private {
       network {
-        id        = ovh_cloud_project_network_private.this[each.key].regions_openstack_ids[var.region]
-        subnet_id = ovh_cloud_project_network_private_subnet.this[each.key].id
+        id        = ovh_cloud_project_network_private.this.regions_openstack_ids[var.region]
+        subnet_id = ovh_cloud_project_network_private_subnet.this.id
       }
       gateway {
-        id = ovh_cloud_project_gateway.this[each.key].id
+        id = ovh_cloud_project_gateway.this.id
       }
       dynamic "floating_ip" {
-        for_each = each.value.floating_ip_id != "" ? [1] : []
+        for_each = local.floating_ip_id != "" ? [1] : []
         content {
-          id = each.value.floating_ip_id
+          id = local.floating_ip_id
         }
       }
     }
@@ -37,5 +36,5 @@ resource "ovh_cloud_project_instance" "nginx" {
 }
 
 output "nginx_addresses" {
-  value = { for k, v in ovh_cloud_project_instance.nginx : k => v.addresses }
+  value = ovh_cloud_project_instance.nginx.addresses
 }

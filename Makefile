@@ -1,8 +1,11 @@
-.PHONY: init fmt validate plan apply destroy ansible-deps ansible-ping ansible ansible-argocd-bootstrap
+.PHONY: init fmt validate plan apply plan-dev plan-prod apply-dev apply-prod ansible-deps ansible-ping ansible ansible-argocd-bootstrap
 
-# Terraform
+# Environment (default: dev)
+ENV ?= dev
+
+# Terraform (per-environment)
 init:
-	cd terraform && terraform init
+	cd terraform && ./run.sh $(ENV) init
 
 fmt:
 	cd terraform && terraform fmt -recursive
@@ -11,15 +14,23 @@ validate:
 	cd terraform && terraform validate
 
 plan:
-	cd terraform && terraform plan
+	cd terraform && ./run.sh $(ENV) plan
 
 apply:
-	cd terraform && terraform apply
+	cd terraform && ./run.sh $(ENV) apply
 
-destroy:
-	cd terraform && terraform destroy
+# Shortcuts
+plan-dev:
+	$(MAKE) plan ENV=dev
 
-terraform-all: init validate plan apply
+plan-prod:
+	$(MAKE) plan ENV=prod
+
+apply-dev:
+	$(MAKE) apply ENV=dev
+
+apply-prod:
+	$(MAKE) apply ENV=prod
 
 # Ansible
 ansible-deps:

@@ -1,3 +1,4 @@
+# Shared configuration - copy to base.tfvars and fill in values
 ovh_application_key    = ""
 ovh_application_secret = ""
 ovh_consumer_key       = ""
@@ -5,5 +6,8 @@ ovh_project_id         = ""
 ssh_key_name           = ""
 instance_flavor_id     = ""
 instance_image_id      = ""
+region                 = "DE1"
+kube_node_flavor       = "b3-16"
+kube_node_count        = 2
 floating_ip_id_dev     = ""
 floating_ip_id_prod    = ""

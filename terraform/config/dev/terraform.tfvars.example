@@ -1,0 +1,8 @@
+# Dev environment config - copy to terraform.tfvars and change what needs to be changed
+env          = "dev"
+vlan_id      = 100
+subnet       = "10.0.0.0/24"
+subnet_start = "10.0.0.2"
+subnet_end   = "10.0.0.254"
+deploy_k8s   = true
+# floating_ip_id_dev is in config/base.tfvars

@@ -1,4 +1,6 @@
 terraform {
+  backend "s3" {} # Config via -backend-config
+
   required_providers {
     ovh = {
       source  = "ovh/ovh"
@@ -18,9 +20,10 @@ provider "ovh" {
   consumer_key       = var.ovh_consumer_key
 }
 
+# Dummy values when deploy_k8s=false - provider won't be used (all k8s resources have count=0)
 provider "kubernetes" {
-  host                   = ovh_cloud_project_kube.this["dev"].kubeconfig_attributes[0].host
-  cluster_ca_certificate = base64decode(ovh_cloud_project_kube.this["dev"].kubeconfig_attributes[0].cluster_ca_certificate)
-  client_certificate     = base64decode(ovh_cloud_project_kube.this["dev"].kubeconfig_attributes[0].client_certificate)
-  client_key             = base64decode(ovh_cloud_project_kube.this["dev"].kubeconfig_attributes[0].client_key)
+  host                   = var.deploy_k8s ? ovh_cloud_project_kube.this[0].kubeconfig_attributes[0].host : "https://localhost"
+  cluster_ca_certificate = var.deploy_k8s ? base64decode(ovh_cloud_project_kube.this[0].kubeconfig_attributes[0].cluster_ca_certificate) : ""
+  client_certificate     = var.deploy_k8s ? base64decode(ovh_cloud_project_kube.this[0].kubeconfig_attributes[0].client_certificate) : ""
+  client_key             = var.deploy_k8s ? base64decode(ovh_cloud_project_kube.this[0].kubeconfig_attributes[0].client_key) : ""
 }

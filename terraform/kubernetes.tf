@@ -1,16 +1,16 @@
-# Managed K8s cluster (dev only)
+# Managed K8s cluster (conditional on deploy_k8s)
 resource "ovh_cloud_project_kube" "this" {
-  for_each = { for k, v in local.environments : k => v if k == "dev" }
+  count = var.deploy_k8s ? 1 : 0
 
   service_name = var.ovh_project_id
-  name         = "hdc-${each.key}"
+  name         = "hdc-${var.env}"
   region       = var.region
 
   private_network_id = tolist(
-    ovh_cloud_project_network_private.this[each.key].regions_attributes
+    ovh_cloud_project_network_private.this.regions_attributes
   )[0].openstackid
 
-  nodes_subnet_id = ovh_cloud_project_network_private_subnet.this[each.key].id
+  nodes_subnet_id = ovh_cloud_project_network_private_subnet.this.id
 
   private_network_configuration {
     # Empty gateway = nodes get public IPs for egress (multiple egress IPs)
@@ -28,10 +28,10 @@ resource "ovh_cloud_project_kube" "this" {
 
 # Node pool
 resource "ovh_cloud_project_kube_nodepool" "default" {
-  for_each = ovh_cloud_project_kube.this
+  count = var.deploy_k8s ? 1 : 0
 
   service_name  = var.ovh_project_id
-  kube_id       = each.value.id
+  kube_id       = ovh_cloud_project_kube.this[0].id
   name          = "default-pool"
   flavor_name   = var.kube_node_flavor
   desired_nodes = var.kube_node_count
@@ -42,10 +42,10 @@ resource "ovh_cloud_project_kube_nodepool" "default" {
 }
 
 output "kube_cluster_id" {
-  value = { for k, v in ovh_cloud_project_kube.this : k => v.id }
+  value = var.deploy_k8s ? ovh_cloud_project_kube.this[0].id : null
 }
 
 output "kubeconfig" {
-  value     = { for k, v in ovh_cloud_project_kube.this : k => v.kubeconfig }
+  value     = var.deploy_k8s ? ovh_cloud_project_kube.this[0].kubeconfig : null
   sensitive = true
 }

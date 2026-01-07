@@ -35,6 +35,41 @@ variable "instance_image_id" {
   type = string
 }
 
+variable "kube_node_flavor" {
+  type    = string
+  default = "b3-16"
+}
+
+variable "kube_node_count" {
+  type    = number
+  default = 2
+}
+
+# Environment-specific variables (from config/{env}/terraform.tfvars)
+variable "env" {
+  type = string
+  validation {
+    condition     = contains(["dev", "prod"], var.env)
+    error_message = "Environment must be dev or prod."
+  }
+}
+
+variable "vlan_id" {
+  type = number
+}
+
+variable "subnet" {
+  type = string
+}
+
+variable "subnet_start" {
+  type = string
+}
+
+variable "subnet_end" {
+  type = string
+}
+
 variable "floating_ip_id_dev" {
   type        = string
   default     = ""
@@ -47,12 +82,8 @@ variable "floating_ip_id_prod" {
   description = "Floating IP ID for prod nginx (create in OVH UI after network exists)"
 }
 
-variable "kube_node_flavor" {
-  type    = string
-  default = "b3-16"
-}
-
-variable "kube_node_count" {
-  type    = number
-  default = 2
+variable "deploy_k8s" {
+  type        = bool
+  default     = false
+  description = "Whether to deploy K8s cluster in this environment"
 }

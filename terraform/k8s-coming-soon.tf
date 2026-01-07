@@ -1,13 +1,17 @@
 resource "kubernetes_namespace" "test" {
+  count = var.deploy_k8s ? 1 : 0
+
   metadata {
     name = "test"
   }
 }
 
 resource "kubernetes_config_map" "coming_soon" {
+  count = var.deploy_k8s ? 1 : 0
+
   metadata {
     name      = "coming-soon-html"
-    namespace = kubernetes_namespace.test.metadata[0].name
+    namespace = kubernetes_namespace.test[0].metadata[0].name
   }
 
   data = {
@@ -24,9 +28,11 @@ resource "kubernetes_config_map" "coming_soon" {
 }
 
 resource "kubernetes_deployment" "coming_soon" {
+  count = var.deploy_k8s ? 1 : 0
+
   metadata {
     name      = "coming-soon"
-    namespace = kubernetes_namespace.test.metadata[0].name
+    namespace = kubernetes_namespace.test[0].metadata[0].name
   }
 
   spec {
@@ -53,7 +59,7 @@ resource "kubernetes_deployment" "coming_soon" {
         volume {
           name = "html"
           config_map {
-            name = kubernetes_config_map.coming_soon.metadata[0].name
+            name = kubernetes_config_map.coming_soon[0].metadata[0].name
           }
         }
       }
@@ -62,9 +68,11 @@ resource "kubernetes_deployment" "coming_soon" {
 }
 
 resource "kubernetes_service" "coming_soon" {
+  count = var.deploy_k8s ? 1 : 0
+
   metadata {
     name      = "coming-soon"
-    namespace = kubernetes_namespace.test.metadata[0].name
+    namespace = kubernetes_namespace.test[0].metadata[0].name
   }
 
   spec {
@@ -78,9 +86,11 @@ resource "kubernetes_service" "coming_soon" {
 }
 
 resource "kubernetes_ingress_v1" "coming_soon" {
+  count = var.deploy_k8s ? 1 : 0
+
   metadata {
     name      = "coming-soon"
-    namespace = kubernetes_namespace.test.metadata[0].name
+    namespace = kubernetes_namespace.test[0].metadata[0].name
     annotations = {
       "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
     }
@@ -102,7 +112,7 @@ resource "kubernetes_ingress_v1" "coming_soon" {
           path_type = "Prefix"
           backend {
             service {
-              name = kubernetes_service.coming_soon.metadata[0].name
+              name = kubernetes_service.coming_soon[0].metadata[0].name
               port {
                 number = 80
               }
