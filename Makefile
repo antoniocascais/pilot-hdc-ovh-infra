@@ -1,4 +1,4 @@
-.PHONY: init fmt validate plan apply plan-dev plan-prod apply-dev apply-prod ansible-deps ansible-ping ansible ansible-argocd-bootstrap
+.PHONY: init fmt validate plan apply plan-dev plan-prod apply-dev apply-prod ansible-deps ansible-ping ansible ansible-argocd-bootstrap init-keycloak plan-keycloak apply-keycloak ci-tf
 
 # Environment (default: dev)
 ENV ?= dev
@@ -45,3 +45,25 @@ ansible:
 
 ansible-argocd-bootstrap: ansible-deps
 	cd ansible && ansible-playbook playbooks/argocd-bootstrap.yml -e @vars/sensitive.yml
+
+# Keycloak Terraform
+init-keycloak:
+	cd terraform/keycloak && ./run.sh $(ENV) init
+
+plan-keycloak:
+	cd terraform/keycloak && ./run.sh $(ENV) plan
+
+apply-keycloak:
+	cd terraform/keycloak && ./run.sh $(ENV) apply
+
+# CI - Terraform static analysis
+ci-tf:
+	@for cmd in terraform tflint checkov; do \
+		command -v $$cmd >/dev/null || { echo "ERROR: $$cmd not found"; exit 1; }; \
+	done
+	cd terraform && terraform fmt -check
+	cd terraform/keycloak && terraform fmt -check
+	cd terraform && terraform validate
+	cd terraform/keycloak && terraform validate
+	tflint --recursive terraform/
+	checkov -d terraform/

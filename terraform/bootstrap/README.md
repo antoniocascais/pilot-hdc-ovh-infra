@@ -31,6 +31,18 @@ terraform output -raw s3_secret_access_key
 
 Store credentials securely (e.g., password manager, env vars for CI).
 
+## Credentials (gopass)
+
+```bash
+# Store after bootstrap
+gopass insert ebrains-dev/hdc/ovh/s3-tfstate/access-key-id <<< "$(terraform output -raw s3_access_key_id)"
+gopass insert ebrains-dev/hdc/ovh/s3-tfstate/secret-access-key <<< "$(terraform output -raw s3_secret_access_key)"
+
+# Use in other terraform roots
+export AWS_ACCESS_KEY_ID=$(gopass show -o ebrains-dev/hdc/ovh/s3-tfstate/access-key-id)
+export AWS_SECRET_ACCESS_KEY=$(gopass show -o ebrains-dev/hdc/ovh/s3-tfstate/secret-access-key)
+```
+
 ## Optional: Backup Bootstrap State
 
 The bootstrap state is stored locally. If lost, the S3 bucket and user become orphaned

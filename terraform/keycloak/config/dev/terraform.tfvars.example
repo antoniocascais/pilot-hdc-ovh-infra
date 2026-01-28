@@ -1,0 +1,10 @@
+env                    = "dev"
+domain                 = "dev.hdc.ebrains.eu"
+keycloak_url           = "https://iam.dev.hdc.ebrains.eu"
+keycloak_admin_user    = ""
+keycloak_admin_password = ""
+test_admin_password    = ""
+
+# Dev-only flags
+create_test_user       = true
+enable_direct_grants   = true
