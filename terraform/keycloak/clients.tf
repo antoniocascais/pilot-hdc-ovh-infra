@@ -279,3 +279,105 @@ resource "keycloak_openid_user_session_note_protocol_mapper" "xwiki_client_host"
   claim_name       = "clientHost"
   claim_value_type = "String"
 }
+
+# --- Guacamole per-project clients (confidential, OIDC) ---
+
+resource "keycloak_openid_client" "guacamole" {
+  for_each = toset(var.workspace_projects)
+
+  realm_id  = keycloak_realm.hdc.id
+  client_id = "guacamole-${each.value}"
+  name      = "Guacamole-${each.value}"
+  enabled   = true
+
+  access_type                  = "CONFIDENTIAL"
+  standard_flow_enabled        = true
+  direct_access_grants_enabled = false
+  service_accounts_enabled     = true
+  implicit_flow_enabled        = false
+
+  authorization {
+    policy_enforcement_mode = "ENFORCING"
+  }
+
+  valid_redirect_uris = [
+    "https://${var.domain}/workbench/${each.value}/guacamole/",
+  ]
+}
+
+resource "keycloak_openid_client_default_scopes" "guacamole" {
+  for_each = toset(var.workspace_projects)
+
+  realm_id  = keycloak_realm.hdc.id
+  client_id = keycloak_openid_client.guacamole[each.value].id
+
+  default_scopes = [
+    "profile",
+    "email",
+    keycloak_openid_client_scope.groups.name,
+    keycloak_openid_client_scope.openid.name,
+    keycloak_openid_client_scope.username.name,
+  ]
+}
+
+# Guacamole per-client protocol mappers
+
+resource "keycloak_openid_user_property_protocol_mapper" "guacamole_username" {
+  for_each = toset(var.workspace_projects)
+
+  realm_id  = keycloak_realm.hdc.id
+  client_id = keycloak_openid_client.guacamole[each.value].id
+  name      = "username mapper"
+
+  user_property = "username"
+  claim_name    = "username"
+}
+
+resource "keycloak_openid_user_property_protocol_mapper" "guacamole_email" {
+  for_each = toset(var.workspace_projects)
+
+  realm_id  = keycloak_realm.hdc.id
+  client_id = keycloak_openid_client.guacamole[each.value].id
+  name      = "email mapper"
+
+  user_property = "email"
+  claim_name    = "email"
+}
+
+# service_accounts_enabled auto-creates these 3 — manage in TF to avoid drift
+
+resource "keycloak_openid_user_session_note_protocol_mapper" "guacamole_client_id" {
+  for_each = toset(var.workspace_projects)
+
+  realm_id  = keycloak_realm.hdc.id
+  client_id = keycloak_openid_client.guacamole[each.value].id
+  name      = "Client ID"
+
+  session_note     = "clientId"
+  claim_name       = "clientId"
+  claim_value_type = "String"
+}
+
+resource "keycloak_openid_user_session_note_protocol_mapper" "guacamole_client_ip" {
+  for_each = toset(var.workspace_projects)
+
+  realm_id  = keycloak_realm.hdc.id
+  client_id = keycloak_openid_client.guacamole[each.value].id
+  name      = "Client IP Address"
+
+  session_note     = "clientAddress"
+  claim_name       = "clientAddress"
+  claim_value_type = "String"
+}
+
+resource "keycloak_openid_user_session_note_protocol_mapper" "guacamole_client_host" {
+  for_each = toset(var.workspace_projects)
+
+  realm_id  = keycloak_realm.hdc.id
+  client_id = keycloak_openid_client.guacamole[each.value].id
+  name      = "Client Host"
+
+  session_note     = "clientHost"
+  claim_name       = "clientHost"
+  claim_value_type = "String"
+}

@@ -17,7 +17,7 @@ env=${1:-dev}
 action=${2:-plan}
 
 if [[ ! "$env" =~ ^(dev|prod)$ ]]; then
-    echo "Usage: $0 [dev|prod] [plan|apply|init]"
+    echo "Usage: $0 [dev|prod] [plan|apply|init|import <addr> <id>]"
     exit 1
 fi
 
@@ -51,9 +51,22 @@ case "$action" in
         [[ -f "deploy-$env.tfplan" ]] || { echo "No deploy-$env.tfplan. Run '$0 $env plan' first."; exit 1; }
         terraform apply "deploy-$env.tfplan"
         ;;
+    import)
+        addr=${3:?Usage: $0 $env import '<tf_address>' '<import_id>'}
+        id=${4:?Usage: $0 $env import '<tf_address>' '<import_id>'}
+        terraform init -backend-config="config/$env/backend.tfbackend" -reconfigure
+        base=$(decrypt_var_file config/base.tfvars)
+        env_vars=$(decrypt_var_file "config/$env/terraform.tfvars")
+        creds=$(decrypt_var_file config/credentials.tfvars)
+        terraform import \
+            -var-file="$base" \
+            -var-file="$env_vars" \
+            -var-file="$creds" \
+            "$addr" "$id"
+        ;;
     *)
         echo "Unknown action: $action"
-        echo "Usage: $0 [dev|prod] [plan|apply|init]"
+        echo "Usage: $0 [dev|prod] [plan|apply|init|import <addr> <id>]"
         exit 1
         ;;
 esac

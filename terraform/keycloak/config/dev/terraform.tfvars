@@ -10,9 +10,11 @@ enable_direct_grants =ENC[AES256_GCM,data:WR8eSCM=,iv:rcxcpdHJstVx9/NoC0nxpXN0ly
 #ENC[AES256_GCM,data:DSy4DqDHy2ZNbkaKDpHSN+jCXwLajlQ=,iv:LHQkSMNENi104QlDqGlVq3XevJggbC+d/cqmPHmM4tI=,tag:lfXVKHzyu8nzA6u3IiEKtA==,type:comment]
 ebrains_oidc_client_id     =ENC[AES256_GCM,data:/ILDTidj8u2Hr3VGaaDdpg==,iv:R/p8YFVKP7DWqL/IEsU6kKqLRIoNy5TxMvEV3OM2Hh4=,tag:Dcii306HL2o2EFM5Kxo4hA==,type:str]
 ebrains_oidc_client_secret =ENC[AES256_GCM,data:Y1iRg/WtXzZnVRbFpC3T3jlBvtE3WRerPeD7+lBUVkziNJ0=,iv:0nhhFEajKx0aeFybKOQD1gjyAWsP/qmuS28jwedCy4c=,tag:E11ojelOZcuq/21E5jcNuQ==,type:str]
-sops_unencrypted_suffix=_unencrypted
-sops_version=3.7.3
+#ENC[AES256_GCM,data:FPxxHlUWRvqsw0G+he6unFOwQ3DYOEBZ/8M4qJkHPXOz0CPcHPq9RPjYCwaBWrw=,iv:iqnNeSPH31wH5garVsRApDJWi7/E/dm3sC/T7BuSU3Q=,tag:bFfsoFwUeZ3vnQu2A9eF/w==,type:comment]
+workspace_projects =ENC[AES256_GCM,data:65LcKL+sA49b3TTHXT8TZiKV,iv:aYpuqqVp3CE9vjlgAxQpWnHnEC1H7qftNgMVJg+2YJs=,tag:2GmjEOnOuE/kxf1R1JFM7A==,type:str]
+sops_lastmodified=2026-03-17T14:49:32Z
 sops_age__list_0__map_recipient=age1jqmtl54n9w063hu5s5nw208ds440u696m693pp63x4f78rxdevkskpxqnh
 sops_age__list_0__map_enc=-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBiTk1zamd1dEFBUzdEMjE4\nNENCSGV4bWZkRmUrT1Rqd3p1ZDUxZGI3KzNzCnJkK1NEd2IzSVRhM1FodjE2aGly\nbHJQaDF3aDRJMERrQXkxR2VLcEdtOW8KLS0tIHVubmNWREVPb1BDSVMvdVhrYWpP\nRnBkMjc2QjBETi9wMWlMdVpNL3MrWVUKBYGkGhY0xRQX+GmUKG2L3EY+Igios6Ca\n8USBalYliASszD6FtAljqiHDY8b3Myxs16JxtEhw9PeBEBfQmCoCBQ==\n-----END AGE ENCRYPTED FILE-----\n
-sops_lastmodified=2026-03-04T15:13:51Z
-sops_mac=ENC[AES256_GCM,data:KGMlm47pEH4015U+DOSMnczaQKwz7bGQAdkqPYvM79fRkOZzClMDBUhBbfKQFid1uO+OiKsbPY6c6yS4d1qTMKXjAlr0+8/pNE/fxG3nkGUlWdZE+xgbjTzfmTfJuy9iNwJ92aUJGI40yxxAeffdNjy5jHxdwX8fXAkAmZCUOtI=,iv:JUlbeV0SCvn+pO8h++4HqW2R9TFjjCfwY8TxivPe0+E=,tag:IzkZGYI/zJRnMeh2pSUIcQ==,type:str]
+sops_mac=ENC[AES256_GCM,data:OxKee4GrsoWnonjqsC/Exsm3vKrj7GcHv+kexXU+lYWkxuJQ1Cp83p5VfMod7UYDQG5RiJP/pnxmsuaYQYDM1Xevt458SwZ9QHEGpitzGJmcZWlCrdiKr7rSKJ/wf6xG8TsuCidRqh1nuBRyUZEMJHEML0FfNrPFjHtCS49iDpE=,iv:QkHds7RFFqXIu2qzuMJOk+rYmy1wy3B8mTdd4fW2K3I=,tag:a83geOJwDKj7n6qZ8oW+Sw==,type:str]
+sops_unencrypted_suffix=_unencrypted
+sops_version=3.7.3

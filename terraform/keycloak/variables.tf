@@ -68,6 +68,12 @@ check "no_test_user_in_prod" {
   }
 }
 
+variable "workspace_projects" {
+  description = "Project names for per-project workbench resources (Guacamole, Superset, etc.)"
+  type        = list(string)
+  default     = []
+}
+
 variable "ebrains_oidc_client_id" {
   description = "EBRAINS IAM OIDC client ID (hdcclient-dev or hdcclient-prod)"
   type        = string

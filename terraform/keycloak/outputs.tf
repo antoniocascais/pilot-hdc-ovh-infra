@@ -24,3 +24,9 @@ output "xwiki_client_secret" {
   value     = keycloak_openid_client.xwiki.client_secret
   sensitive = true
 }
+
+output "guacamole_client_secrets" {
+  description = "Per-project Guacamole client secrets (for Vault)"
+  value       = { for p in var.workspace_projects : p => keycloak_openid_client.guacamole[p].client_secret }
+  sensitive   = true
+}
