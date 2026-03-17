@@ -1,3 +1,6 @@
 creation_rules:
   - path_regex: '\.tfvars$'
-    age: 'age1jqmtl54n9w063hu5s5nw208ds440u696m693pp63x4f78rxdevkskpxqnh'
+    key_groups:
+      - age:
+          - age1jqmtl54n9w063hu5s5nw208ds440u696m693pp63x4f78rxdevkskpxqnh  # acascais@indocresearch.org
+          - age1ywpmeqt0x68hapd7pzk5sj0k57hfhkzra77jvxdnd7y5gmnppf2qzpe3ph  # vmoshynskyi@indocresearch.org
