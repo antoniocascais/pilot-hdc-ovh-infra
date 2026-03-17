@@ -1,4 +1,4 @@
-.PHONY: init fmt validate plan apply plan-dev plan-prod apply-dev apply-prod ansible-deps ansible-ping ansible ansible-nfs ansible-argocd-bootstrap init-keycloak plan-keycloak apply-keycloak init-kong plan-kong apply-kong ci-tf
+.PHONY: init fmt validate plan apply plan-dev plan-prod apply-dev apply-prod ansible-deps ansible-ping ansible ansible-nfs ansible-argocd-bootstrap init-keycloak plan-keycloak apply-keycloak init-kong plan-kong apply-kong ci-tf sops-reencrypt
 
 # Environment (default: dev)
 ENV ?= dev
@@ -68,6 +68,18 @@ plan-kong:
 
 apply-kong:
 	cd terraform/kong && ./run.sh $(ENV) apply
+
+# SOPS - re-encrypt all tfvars after adding a new recipient to .sops.yaml
+sops-reencrypt:
+	@find terraform -name '*.tfvars' -not -path '*/bootstrap/*' | while read f; do \
+		echo "Re-encrypting $$f"; \
+		plain=$$(mktemp --suffix=.tfvars); \
+		enc=$$(mktemp --suffix=.tfvars); \
+		sops -d --input-type dotenv --output-type dotenv "$$f" > "$$plain" && \
+		sops -e --input-type dotenv --output-type dotenv "$$plain" > "$$enc" && \
+		mv "$$enc" "$$f"; \
+		rm -f "$$plain" "$$enc"; \
+	done
 
 # CI - Terraform static analysis
 ci-tf:

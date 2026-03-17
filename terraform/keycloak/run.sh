@@ -1,6 +1,18 @@
 #!/bin/bash
 set -e
 
+TMPFILES=()
+cleanup() { rm -f "${TMPFILES[@]}"; }
+trap cleanup EXIT
+
+decrypt_var_file() {
+    local src="$1" tmp
+    tmp=$(mktemp)
+    sops -d --input-type dotenv --output-type dotenv "$src" > "$tmp" || { echo "Failed to decrypt $src"; exit 1; }
+    TMPFILES+=("$tmp")
+    echo "$tmp"
+}
+
 env=${1:-dev}
 action=${2:-plan}
 
@@ -23,9 +35,11 @@ case "$action" in
         ;;
     plan)
         terraform init -backend-config="config/$env/backend.tfbackend" -reconfigure
+        base=$(decrypt_var_file config/base.tfvars)
+        env_vars=$(decrypt_var_file "config/$env/terraform.tfvars")
         terraform plan \
-            -var-file=config/base.tfvars \
-            -var-file="config/$env/terraform.tfvars" \
+            -var-file="$base" \
+            -var-file="$env_vars" \
             -out="deploy-$env.tfplan"
         ;;
     apply)

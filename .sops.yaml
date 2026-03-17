@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: '\.tfvars$'
+    age: 'age1jqmtl54n9w063hu5s5nw208ds440u696m693pp63x4f78rxdevkskpxqnh'

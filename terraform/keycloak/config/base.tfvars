@@ -1,0 +1,7 @@
+realm_name =ENC[AES256_GCM,data:Lk0u+m0O,iv:dSBuQG9l8/w5scJ8hemGpu58uPxYMZFjy5EJvxUoycA=,tag:vFisGIJIX4QoIPBWjTHN1g==,type:str]
+sops_mac=ENC[AES256_GCM,data:dJC24yEl49epkfgSUPwVGUqF3IDPWN9p+GwVwik0vmnQuKI7UP0NaYkvKbj7x7uuFbGCrsJ2Pa//7wJeeQH7BgCGtzODl30NwAjXt/t6J2MWJfdK9UkmZ6jYMeYAFeJwfuphuJnbEoY0KjPvXXuO/+E3ZTmz6RYY2aWDvJk0BrA=,iv:Dc5/kiTIHa5hnNP3/UKG5qfhY7Z4r9cMY+ghAnw3Jdw=,tag:OOFT6K71U1b37khZdcLsyw==,type:str]
+sops_version=3.7.3
+sops_lastmodified=2026-03-04T15:13:51Z
+sops_unencrypted_suffix=_unencrypted
+sops_age__list_0__map_enc=-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBLR0d6RzZ3ZU9LN1Z2SXpI\nMFVaMmIybE5NeWtiajhkWFhTcGNDUFFlcUZnCkhOcDNVNHVLSzNOZHNHQms1bkdq\nNzN2c2t1d09KNlRCeG13WldvYlpUTlUKLS0tIE05M05HN0srQjEwd3RuVE1JMlBo\nVDEyeEplVnFPbkUrZkxkU2o5aWVhcXcKym8XAaV5CiF3+PbnuTDUUDysvAzUBp1P\nnywDexy0OSJP9BfFtlFAuPJUOVUedONF3D9m4jflQddgWWuwPNVuaQ==\n-----END AGE ENCRYPTED FILE-----\n
+sops_age__list_0__map_recipient=age1jqmtl54n9w063hu5s5nw208ds440u696m693pp63x4f78rxdevkskpxqnh

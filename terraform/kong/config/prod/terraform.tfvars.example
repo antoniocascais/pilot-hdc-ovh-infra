@@ -1,6 +1,0 @@
-env                         = "prod"
-kong_admin_uri              = "http://localhost:8001"
-oidc_discovery              = "https://iam.hdc.ebrains.eu/realms/hdc/.well-known/openid-configuration"
-oidc_introspection_endpoint = "https://iam.hdc.ebrains.eu/realms/hdc/protocol/openid-connect/token/introspect"
-cors_origins                = ["https://hdc.ebrains.eu"]
-# oidc_client_secret — pass via TF_VAR_oidc_client_secret or -var flag
