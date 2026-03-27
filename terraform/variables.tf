@@ -111,3 +111,33 @@ variable "freeipa_volume_size" {
   default     = 20
   description = "FreeIPA data volume size in GB"
 }
+
+variable "deploy_guacamole" {
+  type        = bool
+  default     = false
+  description = "Whether to deploy Guacamole desktop VMs"
+}
+
+variable "workspace_projects" {
+  type        = list(string)
+  default     = []
+  description = "List of workspace project names for per-project resources (Guacamole VMs, Keycloak clients)"
+}
+
+variable "guacamole_image_id" {
+  type        = string
+  default     = ""
+  description = "Ubuntu 22.04 image ID for Guacamole VMs (separate from instance_image_id which is 24.04)"
+}
+
+variable "guacamole_flavor_id" {
+  type        = string
+  default     = ""
+  description = "Flavor ID for Guacamole desktop VMs (beefier than standard VMs)"
+}
+
+variable "guacamole_volume_size" {
+  type        = number
+  default     = 50
+  description = "Guacamole data volume size in GB (Docker data-root + user homes)"
+}

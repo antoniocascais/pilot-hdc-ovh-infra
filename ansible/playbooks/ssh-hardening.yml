@@ -1,5 +1,5 @@
 - name: SSH hardening
-  hosts: nginx:nfs:freeipa
+  hosts: nginx:nfs:freeipa:guacamole
   become: yes
   tasks:
     - name: Disable password authentication
@@ -21,27 +21,49 @@
         line: 'Port {{ target_ssh_port }}'
       register: port_changed
 
-    # sshd-socket-generator reads Port from sshd_config and auto-generates
-    # the correct ListenStream entries. No manual override needed.
+    # Detect SSH mode: Ubuntu 24.04 uses ssh.socket (systemd socket activation),
+    # Ubuntu 22.04 uses ssh.service (standalone sshd)
+    - name: Check if ssh.socket exists
+      command: systemctl list-unit-files ssh.socket
+      register: ssh_socket_check
+      changed_when: false
+      failed_when: false
+
+    - name: Set SSH service type
+      set_fact:
+        ssh_uses_socket: "{{ 'ssh.socket' in ssh_socket_check.stdout }}"
+
+    # --- Ubuntu 24.04+ (ssh.socket) ---
+
     - name: Remove stale socket override if present
       file:
         path: /etc/systemd/system/ssh.socket.d
         state: absent
       register: override_removed
+      when: ssh_uses_socket
 
     - name: Reload systemd (triggers sshd-socket-generator)
       systemd:
         daemon_reload: yes
-      when: port_changed.changed or override_removed.changed
+      when: ssh_uses_socket and (port_changed.changed or override_removed.changed)
 
     - name: Ensure ssh.socket is enabled
       systemd:
         name: ssh.socket
         enabled: yes
+      when: ssh_uses_socket
 
     - name: Restart ssh.socket
       systemd:
         name: ssh.socket
         state: restarted
-      when: port_changed.changed or override_removed.changed
+      when: ssh_uses_socket and (port_changed.changed or override_removed.changed)
+
+    # --- Ubuntu 22.04 (ssh.service) ---
+
+    - name: Restart ssh.service
+      systemd:
+        name: ssh
+        state: restarted
+      when: not ssh_uses_socket and port_changed.changed
 

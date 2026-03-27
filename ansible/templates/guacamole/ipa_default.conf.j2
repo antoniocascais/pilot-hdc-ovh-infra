@@ -1,0 +1,10 @@
+# Managed by Ansible — do not edit manually
+
+[global]
+basedn = {{ freeipa_domain.split('.') | map('regex_replace', '^', 'dc=') | join(',') }}
+realm = {{ freeipa_realm }}
+domain = {{ freeipa_domain }}
+server = {{ freeipa_server }}
+host = {{ guacamole_hostname }}
+xmlrpc_uri = https://{{ freeipa_server }}/ipa/xml
+enable_ra = True

@@ -106,6 +106,55 @@ curl -sI https://ldap.dev.hdc.ebrains.eu/ipa/ui/ | head -5
 
 To add a new project host: add its FQDN to `freeipa_managed_hosts` in `freeipa-server.yml`, then `make ansible-freeipa`.
 
+## Guacamole Desktop VMs
+
+Per-project Ubuntu 22.04 VMs for remote desktop access via Guacamole (XRDP + XFCE4). Each project gets a dedicated VM with Docker, FreeIPA client enrollment, Singularity CE 3.8.0, git-annex, datalad, TurboVNC, and pilotcli. Users connect through the Guacamole web app (K8s) → guacd → XRDP → XFCE4.
+
+**Not included in `make ansible`** — runs separately via `make ansible-guacamole`.
+
+### Steps
+
+1. Export S3 backend credentials (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` — see `terraform/bootstrap/README.md`)
+2. Add to `terraform/config/dev/terraform.tfvars` (use `sops --input-type dotenv --output-type dotenv` to edit):
+   ```
+   deploy_guacamole = true
+   workspace_projects = ["workspacetest"]
+   guacamole_image_id = "<Ubuntu 22.04 image ID>"
+   guacamole_flavor_id = "<flavor ID>"
+   ```
+3. `make plan-dev` then `make apply-dev`
+4. Attach each block volume to its Guacamole instance in OVH Console
+5. Add VM private IPs to `ansible/vars/sensitive.yml` (see `sensitive.yml.example`)
+6. Ensure guacamole hostnames are in `freeipa_managed_hosts` in `freeipa-server.yml`, then `make ansible-freeipa`
+7. Bootstrap (first run only, VM still on port 22):
+   ```bash
+   make ansible-guacamole EXTRA_ARGS="-e ssh_port=22"
+   ```
+8. SSH hardening (AFTER guacamole-vm.yml — always last):
+   ```bash
+   cd ansible && ansible-playbook playbooks/ssh-hardening.yml -l guacamole \
+     -e ssh_port=22 -e @vars/sensitive.yml
+   ```
+9. Subsequent runs: `make ansible-guacamole`
+
+### Verification
+
+```bash
+# Block volume + Docker data-root
+ssh <guacamole-vm> 'df -h /data01 && docker info | grep "Docker Root Dir"'
+
+# XRDP
+ssh <guacamole-vm> 'ss -tlnp | grep 3389'
+
+# FreeIPA enrollment
+ssh <guacamole-vm> 'id <freeipa-user>'
+
+# Tools
+ssh <guacamole-vm> 'singularity --version && git-annex version --raw && datalad --version && dpkg -l | grep turbovnc && pilotcli --help | head -1'
+```
+
+To add a new project: add it to `workspace_projects` in tfvars, add its hostname to `freeipa_managed_hosts`, add a new host entry in `ansible/inventory/hosts.yml` under the `guacamole` group.
+
 ## Secret Management (SOPS + age)
 
 Terraform variable files (`.tfvars`) are encrypted with [SOPS](https://github.com/getsops/sops) using [age](https://github.com/FiloSottile/age) and committed to git.

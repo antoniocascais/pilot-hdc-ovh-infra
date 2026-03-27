@@ -1,0 +1,459 @@
+---
+# Guacamole Desktop VM Setup
+#
+# NOT included in site.yml — run separately via: make ansible-guacamole
+#
+# Bootstrap order: DNS → guacamole-vm.yml → ssh-hardening (always last).
+# dist-upgrade may reboot; hardening must run after system is stable.
+#
+# Prerequisites:
+#   1. Terraform: add deploy_guacamole=true + workspace_projects to dev tfvars, make apply-dev
+#   2. OVH Console: attach block volume to each Guacamole instance
+#   3. sensitive.yml: add guacamole_hosts.dev.<project>.ip
+#   4. FreeIPA server: ensure guacamole hostnames are in freeipa_managed_hosts, run make ansible-freeipa
+#   5. Bootstrap (first run only, VM still on port 22):
+#      make ansible-guacamole EXTRA_ARGS="-e ssh_port=22"
+#   6. SSH hardening (AFTER guacamole-vm.yml, always last):
+#      cd ansible && ansible-playbook playbooks/ssh-hardening.yml -l guacamole \
+#        -e ssh_port=22 -e @vars/sensitive.yml
+#   7. Subsequent runs: make ansible-guacamole
+#
+- name: Configure DNS resolvers
+  hosts: guacamole
+  become: true
+  tasks:
+    - include_tasks: ../tasks/dns-resolvers.yml
+
+- name: Configure Guacamole desktop VM
+  hosts: guacamole
+  become: true
+
+  vars:
+    freeipa_realm: "{{ freeipa_domain | upper }}"
+    freeipa_server: "ldap.{{ freeipa_domain }}"
+    guacamole_hostname: "ldap-{{ guacamole_project }}.{{ freeipa_domain }}"
+    guacamole_block_device: /dev/sdb
+    guacamole_data_dir: /data01
+    singularity_version: "3.8.0"
+    go_version: "1.13"
+    turbovnc_version: "3.1"
+    pilotcli_version: "2.2.7-hdc"
+    pilotcli_api_base: "https://api.{{ freeipa_domain }}/pilot"
+
+  tasks:
+
+    # ── System bootstrap ──
+
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: dist
+        update_cache: true
+
+    - name: Check if reboot is required
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Reboot if required after dist-upgrade
+      reboot:
+        msg: "Reboot after dist-upgrade"
+        post_reboot_delay: 30
+      when: reboot_required.stat.exists
+
+    - name: Set hostname
+      hostname:
+        name: "{{ guacamole_hostname }}"
+
+    - name: Add hostname to /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        regexp: '.*{{ guacamole_hostname }}$'
+        line: "127.0.1.1 {{ guacamole_hostname }}"
+
+    - name: Add FreeIPA server to /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        regexp: '.*{{ freeipa_server }}$'
+        line: "{{ freeipa_server_ip }} {{ freeipa_server }} {{ freeipa_domain }}"
+
+    # ── Block volume (/data01) ──
+
+    - name: Verify block device exists
+      stat:
+        path: "{{ guacamole_block_device }}"
+      register: block_dev
+
+    - name: Fail if block device not found
+      fail:
+        msg: >
+          Block device {{ guacamole_block_device }} not found.
+          Attach the volume in OVH Console and verify with lsblk.
+      when: not block_dev.stat.exists
+
+    - name: Create ext4 filesystem on data volume
+      filesystem:
+        fstype: ext4
+        dev: "{{ guacamole_block_device }}"
+
+    - name: Mount data volume at {{ guacamole_data_dir }}
+      mount:
+        path: "{{ guacamole_data_dir }}"
+        src: "{{ guacamole_block_device }}"
+        fstype: ext4
+        opts: defaults
+        state: mounted
+
+    - name: Set data directory permissions
+      file:
+        path: "{{ guacamole_data_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create Docker data directory
+      file:
+        path: "{{ guacamole_data_dir }}/docker"
+        state: directory
+        mode: "0710"
+
+    - name: Create user homes base directory
+      file:
+        path: "{{ guacamole_data_dir }}/homes"
+        state: directory
+        mode: "0755"
+
+    # ── Docker CE ──
+
+    - name: Install Docker prerequisites
+      apt:
+        pkg:
+          - ca-certificates
+          - curl
+          - gnupg
+
+    - name: Create apt keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Add Docker GPG key
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+
+    - name: Add Docker apt repository
+      apt_repository:
+        repo: >-
+          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc]
+          https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        filename: docker
+
+    - name: Install Docker CE
+      apt:
+        pkg:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        update_cache: true
+
+    - name: Configure Docker data-root
+      copy:
+        content: |
+          {
+            "data-root": "{{ guacamole_data_dir }}/docker"
+          }
+        dest: /etc/docker/daemon.json
+        mode: "0644"
+      register: docker_config
+
+    - name: Restart Docker if config changed
+      systemd:
+        name: docker
+        state: restarted
+        daemon_reload: true
+      when: docker_config.changed
+
+    - name: Ensure Docker is enabled and running
+      systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    # ── XFCE4 + XRDP ──
+
+    - name: Install XFCE4 desktop
+      apt:
+        pkg:
+          - xfce4
+          - xfce4-goodies
+          - xorg
+          - dbus-x11
+          - x11-xserver-utils
+
+    - name: Install XRDP and oddjob
+      apt:
+        pkg:
+          - xrdp
+          - oddjob
+          - oddjob-mkhomedir
+
+    - name: Add xrdp to ssl-cert group
+      user:
+        name: xrdp
+        groups: ssl-cert
+        append: true
+
+    - name: Configure pam_mkhomedir in common-session
+      lineinfile:
+        path: /etc/pam.d/common-session
+        regexp: '^session.*pam_mkhomedir'
+        line: "session optional pam_mkhomedir.so skel=/etc/skel umask=0077"
+        insertafter: EOF
+
+    - name: Configure XRDP PAM for environment variables
+      lineinfile:
+        path: /etc/pam.d/xrdp-sesman
+        insertbefore: BOF
+        line: "{{ item }}"
+      loop:
+        - 'session       required   pam_env.so readenv=1 envfile=/etc/environment'
+        - 'session       required   pam_env.so readenv=1 envfile=/etc/default/locale'
+
+    - name: Add pam_sss.so to XRDP PAM for FreeIPA auth
+      lineinfile:
+        path: /etc/pam.d/xrdp-sesman
+        regexp: '^auth.*pam_sss'
+        line: "auth     sufficient   pam_sss.so"
+        insertafter: '^auth'
+
+    - name: Enable and start XRDP
+      systemd:
+        name: xrdp
+        enabled: true
+        state: started
+
+    - name: Enable and start oddjobd
+      systemd:
+        name: oddjobd
+        enabled: true
+        state: started
+
+    # ── FreeIPA client enrollment ──
+
+    - name: Install chrony and freeipa-client
+      apt:
+        pkg:
+          - chrony
+          - freeipa-client
+
+    - name: Enroll FreeIPA client
+      command: >
+        ipa-client-install --unattended
+        --mkhomedir
+        --server={{ freeipa_server }}
+        --domain={{ freeipa_domain }}
+        --realm={{ freeipa_realm }}
+        --principal=admin
+        --password='{{ freeipa_admin_password }}'
+        --force-join
+      args:
+        creates: /etc/ipa/default.conf
+      no_log: true
+      register: freeipa_enrolled
+
+    - name: Template /etc/krb5.conf
+      template:
+        src: ../templates/guacamole/krb5.conf.j2
+        dest: /etc/krb5.conf
+        mode: "0644"
+      register: krb5_conf
+
+    - name: Template /etc/ipa/default.conf
+      template:
+        src: ../templates/guacamole/ipa_default.conf.j2
+        dest: /etc/ipa/default.conf
+        mode: "0644"
+      register: ipa_conf
+
+    # Ubuntu 22.04 SSSD uses socket activation — do NOT add 'services =' to sssd.conf
+    - name: Configure home directories on block volume
+      lineinfile:
+        path: /etc/sssd/sssd.conf
+        regexp: '^override_homedir'
+        line: "override_homedir = {{ guacamole_data_dir }}/homes/%u"
+        insertafter: '^\[domain/'
+      register: sssd_homedir
+
+    - name: Restart SSSD if config changed
+      systemd:
+        name: sssd
+        state: restarted
+      when: krb5_conf.changed or ipa_conf.changed or sssd_homedir.changed
+
+    # ── Singularity CE 3.8.0 ──
+
+    - name: Check if Singularity is already installed
+      command: singularity --version
+      register: singularity_check
+      failed_when: false
+      changed_when: false
+
+    - block:
+        - name: Install Singularity build dependencies
+          apt:
+            pkg:
+              - build-essential
+              - libseccomp-dev
+              - pkg-config
+              - squashfs-tools
+              - cryptsetup
+
+        - name: Download Go {{ go_version }}
+          get_url:
+            url: "https://dl.google.com/go/go{{ go_version }}.linux-amd64.tar.gz"
+            dest: "/tmp/go{{ go_version }}.linux-amd64.tar.gz"
+
+        - name: Extract Go to /usr/local
+          unarchive:
+            src: "/tmp/go{{ go_version }}.linux-amd64.tar.gz"
+            dest: /usr/local/
+            remote_src: true
+
+        - name: Download Singularity CE {{ singularity_version }}
+          get_url:
+            url: "https://github.com/sylabs/singularity/releases/download/v{{ singularity_version }}/singularity-ce-{{ singularity_version }}.tar.gz"
+            dest: "/tmp/singularity-ce-{{ singularity_version }}.tar.gz"
+
+        - name: Extract Singularity source
+          unarchive:
+            src: "/tmp/singularity-ce-{{ singularity_version }}.tar.gz"
+            dest: /tmp/
+            remote_src: true
+
+        - name: Build and install Singularity
+          shell: |
+            export PATH=/usr/local/go/bin:$PATH
+            export GOPATH=/usr/local/go
+            cd /tmp/singularity-ce-{{ singularity_version }}
+            ./mconfig && make -C ./builddir && make -C ./builddir install
+          args:
+            creates: /usr/local/bin/singularity
+      when: singularity_check.rc != 0 or singularity_version not in (singularity_check.stdout | default(''))
+
+    - name: Clean up Singularity build artifacts
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/tmp/singularity-ce-{{ singularity_version }}.tar.gz"
+        - "/tmp/singularity-ce-{{ singularity_version }}"
+        - "/tmp/go{{ go_version }}.linux-amd64.tar.gz"
+
+    - name: Set Singularity environment variables
+      blockinfile:
+        path: /etc/bash.bashrc
+        block: |
+          export SINGULARITY_TMPDIR=$HOME
+          export SINGULARITY_CACHEDIR=$HOME
+          export GOPATH=/usr/local/go
+          export PATH=/usr/local/go/bin:${PATH}:${GOPATH}/bin
+        marker: "# {mark} ANSIBLE MANAGED BLOCK — SINGULARITY"
+
+    # ── git-annex + datalad ──
+
+    - name: Create git-annex directory
+      file:
+        path: /usr/local/git-annex.linux
+        state: directory
+        mode: "0755"
+
+    - name: Download and extract git-annex standalone
+      unarchive:
+        src: https://downloads.kitenet.net/git-annex/linux/current/git-annex-standalone-amd64.tar.gz
+        dest: /usr/local/
+        remote_src: true
+        creates: /usr/local/git-annex.linux/git-annex
+
+    - name: Add git-annex to PATH
+      lineinfile:
+        path: /etc/bash.bashrc
+        regexp: '^export PATH=.*/git-annex'
+        line: 'export PATH="/usr/local/git-annex.linux:$PATH"'
+
+    - name: Install pip3 and setuptools
+      apt:
+        pkg:
+          - python3-pip
+          - python3-setuptools
+
+    - name: Install datalad and dependencies
+      pip:
+        name:
+          - datalad
+          - datalad-container
+        executable: pip3
+
+    # ── TurboVNC ──
+
+    - name: Install Java for TurboVNC
+      apt:
+        name: default-jre
+
+    - name: Check if TurboVNC is installed
+      command: dpkg -s turbovnc
+      register: turbovnc_check
+      failed_when: false
+      changed_when: false
+
+    - name: Download TurboVNC {{ turbovnc_version }}
+      get_url:
+        url: "https://sourceforge.net/projects/turbovnc/files/{{ turbovnc_version }}/turbovnc_{{ turbovnc_version }}_amd64.deb/download"
+        dest: "/tmp/turbovnc_{{ turbovnc_version }}_amd64.deb"
+      when: turbovnc_check.rc != 0
+
+    - name: Install TurboVNC
+      apt:
+        deb: "/tmp/turbovnc_{{ turbovnc_version }}_amd64.deb"
+      when: turbovnc_check.rc != 0
+
+    # ── pilotcli ──
+
+    - name: Install jq
+      apt:
+        name: jq
+
+    - name: Download and install pilotcli {{ pilotcli_version }}
+      shell: |
+        set -e
+        API_URL="https://api.github.com/repos/PilotDataPlatform/cli"
+        ASSET_ID=$(curl -sf "$API_URL/releases/tags/{{ pilotcli_version }}" | jq -r '.assets[0].id')
+        [ "$ASSET_ID" != "null" ] && [ -n "$ASSET_ID" ]
+        curl -sfJL -H "Accept: application/octet-stream" "$API_URL/releases/assets/$ASSET_ID" -o /tmp/pilotcli
+        install -m 755 /tmp/pilotcli /usr/local/bin/pilotcli
+        rm -f /tmp/pilotcli
+      args:
+        creates: /usr/local/bin/pilotcli
+
+    - name: Configure pilotcli environment variables
+      blockinfile:
+        path: /etc/environment
+        block: |
+          base_url="{{ pilotcli_api_base }}/"
+          url_bff="{{ pilotcli_api_base }}/cli"
+          url_keycloak="https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect"
+          keycloak_device_client_id="cli"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK — PILOTCLI"
+
+    # ── Final reboot (only on first provision or config changes) ──
+
+    - name: Reboot to apply all changes
+      reboot:
+        msg: "Reboot after Guacamole VM setup"
+        post_reboot_delay: 30
+      when: >
+        (freeipa_enrolled is defined and freeipa_enrolled.changed) or
+        (sssd_homedir is defined and sssd_homedir.changed) or
+        (krb5_conf is defined and krb5_conf.changed) or
+        (docker_config is defined and docker_config.changed)

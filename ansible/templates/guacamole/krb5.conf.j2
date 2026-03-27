@@ -1,0 +1,31 @@
+# Managed by Ansible — do not edit manually
+
+includedir /etc/krb5.conf.d/
+includedir /var/lib/sss/pubconf/krb5.include.d/
+
+[libdefaults]
+default_realm = {{ freeipa_realm }}
+dns_lookup_realm = false
+dns_lookup_kdc = false
+rdns = false
+dns_canonicalize_hostname = false
+ticket_lifetime = 24h
+forwardable = true
+udp_preference_limit = 0
+default_ccache_name = KEYRING:persistent:%{uid}
+
+[realms]
+  {{ freeipa_realm }} = {
+    kdc = {{ freeipa_server }}:88
+    master_kdc = {{ freeipa_server }}:88
+    admin_server = {{ freeipa_server }}:749
+    kpasswd_server = {{ freeipa_server }}:464
+    default_domain = {{ freeipa_domain }}
+    pkinit_anchors = FILE:/var/lib/ipa-client/pki/kdc-ca-bundle.pem
+    pkinit_pool = FILE:/var/lib/ipa-client/pki/ca-bundle.pem
+  }
+
+[domain_realm]
+  .{{ freeipa_domain }} = {{ freeipa_realm }}
+  {{ freeipa_domain }} = {{ freeipa_realm }}
+  {{ guacamole_hostname }} = {{ freeipa_realm }}

@@ -25,6 +25,11 @@ freeipa_hosts:
 freeipa_admin_password: changeme
 freeipa_ds_password: changeme
 
+guacamole_hosts:
+  dev:
+    workspacetest:
+      ip: 10.0.0.x  # private IP from: terraform output guacamole_addresses
+
 admin_email: admin@my.domain
 
 # Argo CD bootstrap

@@ -1,6 +1,6 @@
 ---
 - name: Configure DNS resolvers
-  hosts: nginx:nfs:freeipa
+  hosts: nginx:nfs:freeipa:guacamole
   become: true
   tasks:
     - include_tasks: ../tasks/dns-resolvers.yml
