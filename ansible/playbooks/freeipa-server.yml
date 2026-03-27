@@ -8,9 +8,9 @@
 # FreeIPA init takes 3-5 min on first boot — the playbook waits for it.
 #
 # Prerequisites:
-#   1. Terraform: add deploy_freeipa=true to dev tfvars, make apply-dev
+#   1. Terraform: add deploy_freeipa=true to tfvars, make apply-<env>
 #   2. OVH Console: attach block volume to FreeIPA instance
-#   3. sensitive.yml: add freeipa_hosts.dev.ip + FreeIPA secrets
+#   3. sensitive.yml: add freeipa_hosts.<env>.ip + FreeIPA secrets
 #   4. Bootstrap FreeIPA (first run only, VM still on port 22):
 #      make ansible-freeipa EXTRA_ARGS="-e ssh_port=22"
 #   5. SSH hardening (AFTER freeipa-server.yml, always last):
@@ -28,19 +28,14 @@
   become: true
 
   vars:
-    freeipa_hostname: ldap.dev.hdc.ebrains.eu
-    freeipa_domain: dev.hdc.ebrains.eu
+    freeipa_hostname: "ldap.{{ freeipa_domain }}"
     freeipa_realm: "{{ freeipa_domain | upper }}"
     freeipa_container_name: freeipa-freeipa-1
     freeipa_block_device: /dev/sdb
     freeipa_data_dir: /srv/freeipa-data
-    freeipa_managed_hosts:
-      - ldap-workspacetest.dev.hdc.ebrains.eu
-    sudo_users:
-      - user: acascais
-        hosts:
-          - ldap-workspacetest.dev.hdc.ebrains.eu
-    deleted_sudo_users: []
+    freeipa_managed_hosts: "{{ freeipa_project_hosts | default([]) }}"
+    sudo_users: "{{ freeipa_sudo_users | default([]) }}"
+    deleted_sudo_users: "{{ freeipa_deleted_sudo_users | default([]) }}"
 
   tasks:
     # --- System bootstrap ---
