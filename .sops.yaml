@@ -4,3 +4,10 @@ creation_rules:
       - age:
           - age1jqmtl54n9w063hu5s5nw208ds440u696m693pp63x4f78rxdevkskpxqnh  # acascais@indocresearch.org
           - age1ywpmeqt0x68hapd7pzk5sj0k57hfhkzra77jvxdnd7y5gmnppf2qzpe3ph  # vmoshynskyi@indocresearch.org
+          - age1n3pwsxtr95zy6l5qlxums45nuc5xp2uvu3jh4ez03y4mcy3cn4wsygrla4  # ci/cd
+  - path_regex: 'ansible/vars/sensitive\.yml$'
+    key_groups:
+      - age:
+          - age1jqmtl54n9w063hu5s5nw208ds440u696m693pp63x4f78rxdevkskpxqnh  # acascais@indocresearch.org
+          - age1ywpmeqt0x68hapd7pzk5sj0k57hfhkzra77jvxdnd7y5gmnppf2qzpe3ph  # vmoshynskyi@indocresearch.org
+          - age1n3pwsxtr95zy6l5qlxums45nuc5xp2uvu3jh4ez03y4mcy3cn4wsygrla4  # ci/cd

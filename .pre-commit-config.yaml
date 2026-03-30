@@ -2,8 +2,8 @@ repos:
   - repo: local
     hooks:
       - id: check-sops-encryption
-        name: Check tfvars are SOPS-encrypted
+        name: Check secrets are SOPS-encrypted
         entry: scripts/check-sops-encryption.sh
         language: script
-        files: '\.tfvars$'
-        exclude: '\.decrypted\.tfvars$'
+        files: '(\.tfvars|ansible/vars/sensitive\.yml)$'
+        exclude: '\.decrypted\.(tfvars|yml)$'

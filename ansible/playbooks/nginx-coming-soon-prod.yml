@@ -4,8 +4,6 @@
 - name: Setup temporary coming soon page (prod only)
   hosts: nginx-prod
   become: true
-  vars_files:
-    - ../vars/sensitive.yml
   tasks:
     - name: Install nginx
       apt:
@@ -50,6 +48,11 @@
 
               root /var/www/html;
               index index.html;
+
+              # TEMPORARY: Redirect image assets to dev while prod is "coming soon"
+              location /img/ {
+                  return 302 https://dev.hdc.ebrains.eu$request_uri;
+              }
 
               location / {
                   try_files $uri $uri/ =404;

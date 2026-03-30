@@ -31,10 +31,8 @@ terraform.rc
 
 .docs
 
-# Ansible
-ansible/vars/sensitive.yml
-
 .gh-token
 
-# Decrypted tfvars (safety net)
+# Decrypted secrets (safety net)
 *.decrypted.tfvars
+*.decrypted.yml

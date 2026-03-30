@@ -38,22 +38,22 @@ ansible-deps:
 	ansible-galaxy collection install -r ansible/requirements.yml
 
 ansible-ping:
-	cd ansible && ansible nginx -m ping -e @vars/sensitive.yml
+	./ansible/run.sh ansible nginx -m ping
 
 ansible:
-	cd ansible && ansible-playbook playbooks/site.yml -e @vars/sensitive.yml
+	./ansible/run.sh ansible-playbook playbooks/site.yml $(EXTRA_ARGS)
 
 ansible-nfs:
-	cd ansible && ansible-playbook playbooks/nfs-server.yml -e @vars/sensitive.yml $(EXTRA_ARGS)
+	./ansible/run.sh ansible-playbook playbooks/nfs-server.yml $(EXTRA_ARGS)
 
 ansible-freeipa:
-	cd ansible && ansible-playbook playbooks/freeipa-server.yml -e @vars/sensitive.yml $(EXTRA_ARGS)
+	./ansible/run.sh ansible-playbook playbooks/freeipa-server.yml $(EXTRA_ARGS)
 
 ansible-guacamole:
-	cd ansible && ansible-playbook playbooks/guacamole-vm.yml -e @vars/sensitive.yml $(EXTRA_ARGS)
+	./ansible/run.sh ansible-playbook playbooks/guacamole-vm.yml $(EXTRA_ARGS)
 
 ansible-argocd-bootstrap: ansible-deps
-	cd ansible && ansible-playbook playbooks/argocd-bootstrap.yml -e @vars/sensitive.yml
+	./ansible/run.sh ansible-playbook playbooks/argocd-bootstrap.yml
 
 # Keycloak Terraform
 init-keycloak:
@@ -75,7 +75,7 @@ plan-kong:
 apply-kong:
 	cd terraform/kong && ./run.sh $(ENV) apply
 
-# SOPS - re-encrypt all tfvars after adding a new recipient to .sops.yaml
+# SOPS - re-encrypt all secrets after adding a new recipient to .sops.yaml
 sops-reencrypt:
 	@find terraform -name '*.tfvars' -not -path '*/bootstrap/*' | while read f; do \
 		echo "Re-encrypting $$f"; \
@@ -86,6 +86,8 @@ sops-reencrypt:
 		mv "$$enc" "$$f"; \
 		rm -f "$$plain" "$$enc"; \
 	done
+	@echo "Re-encrypting ansible/vars/sensitive.yml"; \
+	sops updatekeys -y ansible/vars/sensitive.yml
 
 # CI - Terraform static analysis
 ci-tf:

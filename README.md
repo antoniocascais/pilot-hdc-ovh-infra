@@ -34,14 +34,13 @@ The NFS server provides RWX persistent storage for K8s workloads. It runs on a p
    ```
    Expect `/dev/sdb` (override with `-e nfs_block_device=/dev/sdX` if different)
 6. Add the NFS VM private IP to `ansible/vars/sensitive.yml`:
-   ```yaml
-   nfs_hosts:
-     dev:
-       ip: <private IP from terraform output nfs_addresses>
+   ```bash
+   sops ansible/vars/sensitive.yml
+   # Add: nfs_hosts.dev.ip: <private IP from terraform output nfs_addresses>
    ```
 7. Test Ansible connectivity:
    ```bash
-   cd ansible && ansible nfs -m ping -e ssh_port=22 -e @vars/sensitive.yml
+   ./ansible/run.sh ansible nfs -m ping -e ssh_port=22
    ```
 8. Bootstrap NFS (first run only, VM still on port 22):
    ```bash
@@ -49,8 +48,8 @@ The NFS server provides RWX persistent storage for K8s workloads. It runs on a p
    ```
 9. SSH hardening (AFTER nfs-server.yml — run last so dist-upgrade reboot doesn't reset port):
    ```bash
-   cd ansible && ansible-playbook playbooks/ssh-hardening.yml -l nfs \
-     -e ssh_port=22 -e @vars/sensitive.yml
+   ./ansible/run.sh ansible-playbook playbooks/ssh-hardening.yml -l nfs \
+     -e ssh_port=22
    ```
 10. Subsequent runs: `make ansible-nfs`
 
@@ -74,15 +73,15 @@ Docker-based FreeIPA (`freeipa/freeipa-server:rocky-9-4.12.2`) for LDAP, Kerbero
 2. Add `deploy_freeipa = true` and `freeipa_volume_size = 20` to `terraform/config/dev/terraform.tfvars` (use `sops --input-type dotenv --output-type dotenv` to edit)
 3. `make plan-dev` then `make apply-dev`
 4. Attach the block volume to the FreeIPA instance in OVH Console
-5. Add FreeIPA VM private IP and secrets to `ansible/vars/sensitive.yml` (see `sensitive.yml.example`)
+5. Add FreeIPA VM private IP and secrets to `ansible/vars/sensitive.yml` (`sops ansible/vars/sensitive.yml` to edit)
 6. Bootstrap FreeIPA (first run only, VM still on port 22):
    ```bash
    make ansible-freeipa EXTRA_ARGS="-e ssh_port=22"
    ```
 7. SSH hardening (AFTER freeipa-server.yml — always last):
    ```bash
-   cd ansible && ansible-playbook playbooks/ssh-hardening.yml -l freeipa \
-     -e ssh_port=22 -e @vars/sensitive.yml
+   ./ansible/run.sh ansible-playbook playbooks/ssh-hardening.yml -l freeipa \
+     -e ssh_port=22
    ```
 8. Subsequent runs: `make ansible-freeipa`
 
@@ -124,7 +123,7 @@ Per-project Ubuntu 22.04 VMs for remote desktop access via Guacamole (XRDP + XFC
    ```
 3. `make plan-dev` then `make apply-dev`
 4. Attach each block volume to its Guacamole instance in OVH Console
-5. Add VM private IPs to `ansible/vars/sensitive.yml` (see `sensitive.yml.example`)
+5. Add VM private IPs to `ansible/vars/sensitive.yml` (`sops ansible/vars/sensitive.yml` to edit)
 6. Ensure guacamole hostnames are in `freeipa_managed_hosts` in `freeipa-server.yml`, then `make ansible-freeipa`
 7. Bootstrap (first run only, VM still on port 22):
    ```bash
@@ -132,8 +131,8 @@ Per-project Ubuntu 22.04 VMs for remote desktop access via Guacamole (XRDP + XFC
    ```
 8. SSH hardening (AFTER guacamole-vm.yml — always last):
    ```bash
-   cd ansible && ansible-playbook playbooks/ssh-hardening.yml -l guacamole \
-     -e ssh_port=22 -e @vars/sensitive.yml
+   ./ansible/run.sh ansible-playbook playbooks/ssh-hardening.yml -l guacamole \
+     -e ssh_port=22
    ```
 9. Subsequent runs: `make ansible-guacamole`
 
@@ -157,7 +156,7 @@ To add a new project: add it to `workspace_projects` in tfvars, add its hostname
 
 ## Secret Management (SOPS + age)
 
-Terraform variable files (`.tfvars`) are encrypted with [SOPS](https://github.com/getsops/sops) using [age](https://github.com/FiloSottile/age) and committed to git.
+Terraform variable files (`.tfvars`) and Ansible secrets (`ansible/vars/sensitive.yml`) are encrypted with [SOPS](https://github.com/getsops/sops) using [age](https://github.com/FiloSottile/age) and committed to git.
 
 ### Prerequisites
 
@@ -211,14 +210,17 @@ SOPS auto-discovers the key at this path — decryption just works.
 ```bash
 pre-commit install
 ```
-This installs the pre-commit hook that blocks committing unencrypted tfvars.
+This installs the pre-commit hook that blocks committing unencrypted secrets.
 
-### Working with encrypted tfvars
+### Working with encrypted files
 
-`make plan` / `make apply` (and their keycloak/kong variants) **auto-decrypt** tfvars on the fly — no manual decryption needed for terraform operations. Plaintext is written to tmpfiles and cleaned up on exit.
+All `make` targets **auto-decrypt** on the fly — no manual decryption needed. Plaintext is written to tmpfiles and cleaned up on exit.
 
 ```bash
-# Edit a tfvars file (opens in $EDITOR, re-encrypts on save)
+# Edit ansible secrets (YAML — opens in $EDITOR, re-encrypts on save)
+sops ansible/vars/sensitive.yml
+
+# Edit a tfvars file (HCL/dotenv format — needs explicit type flags)
 sops --input-type dotenv --output-type dotenv terraform/config/dev/terraform.tfvars
 
 # Encrypt a new tfvars file
@@ -228,15 +230,15 @@ sops -e -i --input-type dotenv --output-type dotenv path/to/new.tfvars
 sops -d --input-type dotenv --output-type dotenv terraform/config/dev/terraform.tfvars
 ```
 
-SOPS doesn't natively support HCL — `--input-type dotenv --output-type dotenv` handles `key = "value"` format correctly. Without it, SOPS wraps the file in JSON which breaks Terraform.
+SOPS handles YAML natively. For `.tfvars` (HCL/dotenv format), `--input-type dotenv --output-type dotenv` is required — without it, SOPS wraps the file in JSON which breaks Terraform.
 
 ### CI/CD
 
-CI decrypts tfvars using the `SOPS_AGE_KEY` GitHub secret containing the age private key. See `.github/workflows/` for details.
+CI decrypts all secrets using the `SOPS_AGE_KEY` GitHub secret containing the age private key. See `.github/workflows/` for details.
 
 ## Acknowledgements
 The development of the HealthDataCloud open source software was supported by the EBRAINS research infrastructure, funded from the European Union's Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3) and H2020 Research and Innovation Action Grant Interactive Computing E-Infrastructure for the Human Brain Project ICEI 800858.
 
 This project has received funding from the European Union’s Horizon Europe research and innovation programme under grant agreement No 101058516. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or other granting authorities. Neither the European Union nor other granting authorities can be held responsible for them.
 
-![EU HDC Acknowledgement](https://hdc.humanbrainproject.eu/img/HDC-EU-acknowledgement.png)
+![EU HDC Acknowledgement](https://hdc.ebrains.eu/img/HDC-EU-acknowledgement.png)

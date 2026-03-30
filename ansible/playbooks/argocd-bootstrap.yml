@@ -4,7 +4,6 @@
   connection: local
   gather_facts: false
   vars_files:
-    - ../vars/sensitive.yml
     - ../vars/argocd.yml
   vars:
     kubeconfig: "{{ argocd_kubeconfig }}"

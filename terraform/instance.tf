@@ -12,6 +12,12 @@ resource "ovh_cloud_project_instance" "nginx" {
     flavor_id = var.instance_flavor_id
   }
 
+  # Ubuntu 24.04: ssh.socket not enabled by default on OVH (cloud-init bug)
+  user_data = <<-EOF
+#!/bin/bash
+systemctl enable --now ssh.socket
+EOF
+
   ssh_key {
     name = var.ssh_key_name
   }

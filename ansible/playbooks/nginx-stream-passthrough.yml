@@ -2,8 +2,6 @@
 - name: Configure nginx TLS passthrough to ingress-nginx
   hosts: nginx-dev
   become: true
-  vars_files:
-    - ../vars/sensitive.yml
   vars:
     freeipa_hostname: ldap.dev.hdc.ebrains.eu
     freeipa_cert_name: ldap-dev
