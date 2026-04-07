@@ -21,9 +21,11 @@
   hosts: nfs
   become: true
   tasks:
-    - include_tasks: ../tasks/dns-resolvers.yml
+    - name: Apply DNS resolver config
+      include_tasks: ../tasks/dns-resolvers.yml
 
-- hosts: nfs
+- name: Configure NFS server
+  hosts: nfs
   become: true
 
   tasks:
@@ -56,7 +58,7 @@
       when: not block_dev.stat.exists
 
     - name: Create ext4 filesystem on data volume
-      filesystem:
+      community.general.filesystem:
         fstype: ext4
         dev: "{{ nfs_block_device | default('/dev/sdb') }}"
 
@@ -85,10 +87,10 @@
       template:
         src: ../templates/exports.j2
         dest: /etc/exports
-      notify: restart nfs
+      notify: Restart NFS
 
   handlers:
-    - name: restart nfs
+    - name: Restart NFS
       service:
         name: nfs-kernel-server
         state: restarted

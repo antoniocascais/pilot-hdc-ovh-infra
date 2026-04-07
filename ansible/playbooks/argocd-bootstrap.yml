@@ -39,7 +39,7 @@
       tempfile:
         state: directory
         suffix: argocd
-        mode: 0700
+        mode: "0700"
       register: temp_dir
 
     - name: Render Argo CD Helm templates

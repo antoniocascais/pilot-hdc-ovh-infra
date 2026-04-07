@@ -3,4 +3,5 @@
   hosts: nginx:nfs:freeipa:guacamole
   become: true
   tasks:
-    - include_tasks: ../tasks/dns-resolvers.yml
+    - name: Apply DNS resolver config
+      include_tasks: ../tasks/dns-resolvers.yml

@@ -22,9 +22,11 @@
   hosts: freeipa
   become: true
   tasks:
-    - include_tasks: ../tasks/dns-resolvers.yml
+    - name: Apply DNS resolver config
+      include_tasks: ../tasks/dns-resolvers.yml
 
-- hosts: freeipa
+- name: Configure FreeIPA server
+  hosts: freeipa
   become: true
 
   vars:
@@ -81,7 +83,7 @@
       when: not block_dev.stat.exists
 
     - name: Create ext4 filesystem on data volume
-      filesystem:
+      community.general.filesystem:
         fstype: ext4
         dev: "{{ freeipa_block_device }}"
 
@@ -155,7 +157,7 @@
       template:
         src: ../templates/freeipa/freeipa.service.j2
         dest: /etc/systemd/system/freeipa.service
-      notify: reload systemd
+      notify: Reload systemd
 
     - name: Flush handlers
       meta: flush_handlers
@@ -240,6 +242,6 @@
         - manage_sudo_users.sh
 
   handlers:
-    - name: reload systemd
+    - name: Reload systemd
       systemd:
         daemon_reload: true

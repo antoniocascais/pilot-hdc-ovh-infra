@@ -1,0 +1,12 @@
+---
+profile: moderate
+
+exclude_paths:
+  - ansible/vars/sensitive.yml
+
+skip_list:
+  - yaml[truthy]
+
+warn_list:
+  - command-instead-of-module
+  - no-changed-when

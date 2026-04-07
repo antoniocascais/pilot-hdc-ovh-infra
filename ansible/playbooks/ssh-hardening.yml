@@ -2,36 +2,66 @@
   hosts: nginx:nfs:freeipa:guacamole
   become: yes
   tasks:
-    - name: Disable password authentication
+    - name: Add CI SSH public key
+      ansible.posix.authorized_key:
+        user: ubuntu
+        key: "{{ ci_ssh_public_key }}"
+        state: present
+      when: "'prod' not in inventory_hostname"
+
+    - name: Set SSH port
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Port'
+        line: "Port {{ guacamole_target_ssh_port if 'guacamole' in group_names else target_ssh_port }}"
+      register: port_changed
+
+    - name: Configure password authentication
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?PasswordAuthentication'
-        line: 'PasswordAuthentication no'
+        line: "PasswordAuthentication {{ 'yes' if 'guacamole' in group_names else 'no' }}"
+      register: password_auth_changed
 
     - name: Disable root login
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?PermitRootLogin'
         line: 'PermitRootLogin no'
+      register: root_login_changed
 
-    - name: Change SSH port
+    # guacd 1.2.0 ships libssh2 1.8.0 which only supports ssh-rsa and old KEX algorithms.
+    # These workarounds can be removed after upgrading guacd to 1.5+
+    - name: Configure sshd for guacd compatibility
       lineinfile:
         path: /etc/ssh/sshd_config
-        regexp: '^#?Port'
-        line: 'Port {{ target_ssh_port }}'
-      register: port_changed
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - regexp: '^#?KbdInteractiveAuthentication'
+          line: 'KbdInteractiveAuthentication yes'
+        - regexp: '^#?UseDNS'
+          line: 'UseDNS no'
+        - regexp: '^KexAlgorithms'
+          line: 'KexAlgorithms +diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha256'
+        - regexp: '^HostKeyAlgorithms'
+          line: 'HostKeyAlgorithms +ssh-rsa'
+        - regexp: '^PubkeyAcceptedAlgorithms'
+          line: 'PubkeyAcceptedAlgorithms +ssh-rsa'
+      when: "'guacamole' in group_names"
+      register: guacd_compat_changed
 
     # Detect SSH mode: Ubuntu 24.04 uses ssh.socket (systemd socket activation),
     # Ubuntu 22.04 uses ssh.service (standalone sshd)
-    - name: Check if ssh.socket exists
-      command: systemctl list-unit-files ssh.socket
+    - name: Check if ssh.socket is active
+      command: systemctl is-active ssh.socket
       register: ssh_socket_check
       changed_when: false
       failed_when: false
 
     - name: Set SSH service type
       set_fact:
-        ssh_uses_socket: "{{ 'ssh.socket' in ssh_socket_check.stdout }}"
+        ssh_uses_socket: "{{ ssh_socket_check.stdout.strip() == 'active' }}"
 
     # --- Ubuntu 24.04+ (ssh.socket) ---
 
@@ -42,10 +72,18 @@
       register: override_removed
       when: ssh_uses_socket
 
+    - name: Check if any sshd_config changed
+      set_fact:
+        sshd_config_changed: >-
+          {{ port_changed.changed or
+             password_auth_changed.changed or
+             root_login_changed.changed or
+             (guacd_compat_changed.results | default([]) | selectattr('changed') | list | length > 0) }}
+
     - name: Reload systemd (triggers sshd-socket-generator)
       systemd:
         daemon_reload: yes
-      when: ssh_uses_socket and (port_changed.changed or override_removed.changed)
+      when: ssh_uses_socket and (sshd_config_changed or override_removed.changed)
 
     - name: Ensure ssh.socket is enabled
       systemd:
@@ -57,13 +95,19 @@
       systemd:
         name: ssh.socket
         state: restarted
-      when: ssh_uses_socket and (port_changed.changed or override_removed.changed)
+      when: ssh_uses_socket and (sshd_config_changed or override_removed.changed)
 
     # --- Ubuntu 22.04 (ssh.service) ---
+
+    - name: Ensure sshd privsep directory exists
+      file:
+        path: /run/sshd
+        state: directory
+        mode: "0755"
+      when: not ssh_uses_socket
 
     - name: Restart ssh.service
       systemd:
         name: ssh
         state: restarted
-      when: not ssh_uses_socket and port_changed.changed
-
+      when: not ssh_uses_socket and sshd_config_changed

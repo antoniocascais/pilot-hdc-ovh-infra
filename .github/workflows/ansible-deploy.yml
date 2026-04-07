@@ -1,0 +1,73 @@
+name: Ansible Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      playbook:
+        description: 'Playbook to run'
+        required: true
+        type: choice
+        options:
+          - site
+          - nfs
+          - freeipa
+          - guacamole
+      limit:
+        description: 'Ansible --limit pattern (default: exclude prod hosts)'
+        required: false
+        default: '!nginx-prod'
+        type: string
+      extra_args:
+        description: 'Extra ansible-playbook arguments (e.g. -e ssh_port=22)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    concurrency:
+      group: ansible-deploy-dev
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - uses: mdgreenwald/mozilla-sops-action@d9714e521cbaecdae64a89d2fdd576dd2aa97056 # v1.6.0
+
+      - name: Install Ansible
+        run: |
+          pip install ansible-core yq
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      # Mask all decrypted sensitive values so Ansible failure output
+      # doesn't leak IPs, passwords, or ports in public CI logs
+      - name: Mask sensitive values in logs
+        run: |
+          sops -d ansible/vars/sensitive.yml \
+            | yq -r '.. | scalars | tostring' \
+            | while IFS= read -r val; do
+                [[ -n "$val" ]] && echo "::add-mask::$val"
+              done
+        env:
+          SOPS_AGE_KEY: ${{ secrets.HDC_OVH_SOPS_AGE_KEY }}
+
+      - name: Deploy
+        run: |
+          args=()
+          [[ -n "$LIMIT" ]] && args+=(--limit "$LIMIT")
+          [[ -n "$EXTRA_ARGS" ]] && args+=($EXTRA_ARGS)
+          ./scripts/ci-ansible.sh "$PLAYBOOK" "${args[@]}"
+        env:
+          PLAYBOOK: ${{ github.event.inputs.playbook }}
+          LIMIT: ${{ github.event.inputs.limit }}
+          EXTRA_ARGS: ${{ github.event.inputs.extra_args }}
+          SOPS_AGE_KEY: ${{ secrets.HDC_OVH_SOPS_AGE_KEY }}
+          CI_SSH_PRIVATE_KEY: ${{ secrets.HDC_OVH_SSH_PRIVATE_KEY }}

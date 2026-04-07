@@ -24,6 +24,7 @@ freeipa_hosts:
 freeipa_admin_password: ENC[AES256_GCM,data:ZMJAP1Aj+TM4LoWOhDloQ73GOGfYb5Gq2h2ORBXjloJAzq30Ob1Wb3X8,iv:l4b1wgkgI7cGR+dHKBsRNAtcOE4cKLjoQZ5HHah/arA=,tag:ETwLq7+vMPEv9FeDFbQ3Cg==,type:str]
 freeipa_ds_password: ENC[AES256_GCM,data:01w5RbVzrldsXxHN67aXJbcjZl15cj+ShgBOoGVaGBDx36EAcQ+S/xzR,iv:AwAE8LzKKPLPXC7/7v9ox+yb8M9SB9FPuIaLB4NBgZY=,tag:0Y0+S3co1cSOHQDgaU5fWA==,type:str]
 #ENC[AES256_GCM,data:yKXDeljQ08fP0ttYwLA=,iv:/fFDedhFXw7G/4CZgrbsENnc1D4eB8ebbwl3adiMwlk=,tag:DqNP/4SBzUeESl2lAXII+A==,type:comment]
+guacamole_target_ssh_port: ENC[AES256_GCM,data:z1l4cdE=,iv:MabA04FsOxuZGzfc+yAfhlatc5nGQTra0AKvqphWb5Y=,tag:oHE46EjKZPrsBweecGa57Q==,type:int]
 guacamole_hosts:
     dev:
         workspacetest:
@@ -61,8 +62,8 @@ sops:
             Qm8wUHFValVVaElHdHNMd2h3aDJzSmsKq171USAVJ2oAJK1qSQS4v6kZI1pfq7J1
             XMlaFfC+FQqcaCBSp+S3OV1NyNR9SHqUwQRR60PrZ9NsHQVdTs5jaQ==
             -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2026-03-30T13:30:18Z"
-    mac: ENC[AES256_GCM,data:nMu62MkYYywpMJimriOMEkvqBH3WHuqdJtUQLEuLBhm37cVz4zN65ekHBwe8H/1vOjGfRR3lYCQvNbeBRZWXrQestfO+p0eHxdGU83Nqdyf56jOrA3zI+v9VfX1TZFEO9OZJSK6IbMXqxWF59+01O8fyDThHa7vFhI5mjC6VTAw=,iv:0p+4wE53mHZ6mU4pDRhhWfpqDER1DZ+QWG/wwjWg064=,tag:NjPoqf5jrJ12bm1ldWSoEQ==,type:str]
+    lastmodified: "2026-03-31T08:58:24Z"
+    mac: ENC[AES256_GCM,data:GgIWnaJ2g7MmYGTUhXJoKop15+B7rCf3epbifoxLp6fOR/LzHaMqo/PYlB3UH/CYKgm32fh30MeglkOevRYqlz49rIRE6KXj1u3235IdpMMqb1t1bXIWaH4VILodVp7OtbT/VrzcN1uZ4vY4E8TBAgPYmQI88H+4alQ/sJNd1hM=,iv:YlEB+x3joeuG99VC9BW5yU/M0Q58l5cSIGmq7Rmrkfg=,tag:4/g+14LPrJnL4MDC2zs0Sg==,type:str]
     pgp: []
     unencrypted_suffix: _unencrypted
     version: 3.7.3

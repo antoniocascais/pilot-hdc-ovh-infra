@@ -22,7 +22,8 @@
   hosts: guacamole
   become: true
   tasks:
-    - include_tasks: ../tasks/dns-resolvers.yml
+    - name: Apply DNS resolver config
+      include_tasks: ../tasks/dns-resolvers.yml
 
 - name: Configure Guacamole desktop VM
   hosts: guacamole
@@ -91,7 +92,7 @@
       when: not block_dev.stat.exists
 
     - name: Create ext4 filesystem on data volume
-      filesystem:
+      community.general.filesystem:
         fstype: ext4
         dev: "{{ guacamole_block_device }}"
 
@@ -300,7 +301,9 @@
       failed_when: false
       changed_when: false
 
-    - block:
+    - name: Build and install Singularity CE
+      when: singularity_check.rc != 0 or singularity_version not in (singularity_check.stdout | default(''))
+      block:
         - name: Install Singularity build dependencies
           apt:
             pkg:
@@ -340,7 +343,6 @@
             ./mconfig && make -C ./builddir && make -C ./builddir install
           args:
             creates: /usr/local/bin/singularity
-      when: singularity_check.rc != 0 or singularity_version not in (singularity_check.stdout | default(''))
 
     - name: Clean up Singularity build artifacts
       file:

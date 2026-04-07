@@ -12,4 +12,5 @@ trap 'rm -f "$TMPFILE"' EXIT INT TERM
 sops -d "$ENCRYPTED" > "$TMPFILE" || { echo "Failed to decrypt $ENCRYPTED"; exit 1; }
 
 cd "$SCRIPT_DIR"
-"$@" -e "@$TMPFILE"
+cmd="$1"; shift
+"$cmd" -e "@$TMPFILE" "$@"

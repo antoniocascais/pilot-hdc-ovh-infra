@@ -3,6 +3,9 @@ name: Terraform Lint
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform-lint.yml'
 
 permissions:
   contents: read
@@ -36,7 +39,6 @@ jobs:
         run: |
           terraform fmt -check terraform/
           terraform fmt -check terraform/keycloak/
-          terraform fmt -check terraform/kong/
 
       # Validate (needs init -backend=false + dummy vars for required inputs)
       - name: Validate infra
@@ -72,18 +74,6 @@ jobs:
           TF_VAR_test_admin_password: "x"
           TF_VAR_ebrains_oidc_client_id: "x"
           TF_VAR_ebrains_oidc_client_secret: "x"
-
-      - name: Validate kong
-        working-directory: terraform/kong
-        run: |
-          terraform init -backend=false
-          terraform validate
-        env:
-          TF_VAR_env: "dev"
-          TF_VAR_oidc_discovery: "https://example.com/.well-known/openid-configuration"
-          TF_VAR_oidc_introspection_endpoint: "https://example.com/introspect"
-          TF_VAR_oidc_client_secret: "x"
-          TF_VAR_cors_origins: "https://example.com"
 
       # tflint
       - name: tflint

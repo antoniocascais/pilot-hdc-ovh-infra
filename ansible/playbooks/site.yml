@@ -1,9 +1,14 @@
 ---
-- import_playbook: dns-setup.yml
-- import_playbook: ssh-hardening.yml
-- import_playbook: nginx-stream-passthrough.yml
-- import_playbook: nginx-coming-soon-prod.yml
-- import_playbook: certbot-setup.yml
+- name: DNS resolvers
+  import_playbook: dns-setup.yml
+- name: SSH hardening
+  import_playbook: ssh-hardening.yml
+- name: Nginx TLS passthrough
+  import_playbook: nginx-stream-passthrough.yml
+- name: Prod coming soon page
+  import_playbook: nginx-coming-soon-prod.yml
+- name: Certbot TLS setup
+  import_playbook: certbot-setup.yml
 # NFS server not included — run separately via: make ansible-nfs
 # FreeIPA server not included — run separately via: make ansible-freeipa
 # Both run dist-upgrade + filesystem setup, too disruptive for routine site runs
