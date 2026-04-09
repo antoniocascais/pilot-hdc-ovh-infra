@@ -2,12 +2,19 @@
   hosts: nginx:nfs:freeipa:guacamole
   become: yes
   tasks:
-    - name: Add CI SSH public key
+    - name: Add CI SSH public key (dev only)
       ansible.posix.authorized_key:
         user: ubuntu
         key: "{{ ci_ssh_public_key }}"
         state: present
       when: "'prod' not in inventory_hostname"
+
+    - name: Add ops SSH public key (prod only)
+      ansible.posix.authorized_key:
+        user: ubuntu
+        key: "{{ prod_ssh_public_key }}"
+        state: present
+      when: "'prod' in inventory_hostname"
 
     - name: Set SSH port
       lineinfile:
