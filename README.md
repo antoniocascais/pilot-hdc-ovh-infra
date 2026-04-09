@@ -22,8 +22,8 @@ The NFS server provides RWX persistent storage for K8s workloads. It runs on a p
 ### Steps
 
 1. Export S3 backend credentials (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` — see `terraform/bootstrap/README.md`)
-2. Add `deploy_nfs = true` and `nfs_volume_size = 50` to `terraform/config/dev/terraform.tfvars` (use `sops --input-type dotenv --output-type dotenv` to edit)
-3. `make plan-dev` then `make apply-dev`
+2. Add `deploy_nfs = true` and `nfs_volume_size = 50` to `terraform/config/<env>/terraform.tfvars` (use `sops --input-type dotenv --output-type dotenv` to edit)
+3. `make plan-<env>` then `make apply-<env>` (where `<env>` is `dev` or `prod`)
 4. Attach the block volume to the NFS instance in OVH Console
 5. SSH to the NFS VM via bastion (agent forwarding required) and verify the device:
    ```bash
@@ -36,7 +36,7 @@ The NFS server provides RWX persistent storage for K8s workloads. It runs on a p
 6. Add the NFS VM private IP to `ansible/vars/sensitive.yml`:
    ```bash
    sops ansible/vars/sensitive.yml
-   # Add: nfs_hosts.dev.ip: <private IP from terraform output nfs_addresses>
+   # Add: nfs_hosts.<env>.ip: <private IP from terraform output nfs_addresses>
    ```
 7. Test Ansible connectivity:
    ```bash
@@ -63,15 +63,15 @@ mount -t nfs <nfs-private-ip>:/nfs/export /mnt && touch /mnt/test && rm /mnt/tes
 
 ## FreeIPA Server Setup
 
-Docker-based FreeIPA (`freeipa/freeipa-server:rocky-9-4.12.2`) for LDAP, Kerberos, HBAC, and sudo policy. Private-only VM with block volume for `/data` persistence. Domain: `dev.hdc.ebrains.eu`.
+Docker-based FreeIPA (`freeipa/freeipa-server:rocky-9-4.12.2`) for LDAP, Kerberos, HBAC, and sudo policy. Private-only VM with block volume for `/data` persistence.
 
 **Not included in `make ansible`** — runs separately via `make ansible-freeipa`.
 
 ### Steps
 
 1. Export S3 backend credentials (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` — see `terraform/bootstrap/README.md`)
-2. Add `deploy_freeipa = true` and `freeipa_volume_size = 20` to `terraform/config/dev/terraform.tfvars` (use `sops --input-type dotenv --output-type dotenv` to edit)
-3. `make plan-dev` then `make apply-dev`
+2. Add `deploy_freeipa = true` and `freeipa_volume_size = 20` to `terraform/config/<env>/terraform.tfvars` (use `sops --input-type dotenv --output-type dotenv` to edit)
+3. `make plan-<env>` then `make apply-<env>`
 4. Attach the block volume to the FreeIPA instance in OVH Console
 5. Add FreeIPA VM private IP and secrets to `ansible/vars/sensitive.yml` (`sops ansible/vars/sensitive.yml` to edit)
 6. Bootstrap FreeIPA (first run only, VM still on port 22):
@@ -114,14 +114,14 @@ Per-project Ubuntu 22.04 VMs for remote desktop access via Guacamole (XRDP + XFC
 ### Steps
 
 1. Export S3 backend credentials (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` — see `terraform/bootstrap/README.md`)
-2. Add to `terraform/config/dev/terraform.tfvars` (use `sops --input-type dotenv --output-type dotenv` to edit):
+2. Add to `terraform/config/<env>/terraform.tfvars` (use `sops --input-type dotenv --output-type dotenv` to edit):
    ```
    deploy_guacamole = true
    workspace_projects = ["workspacetest"]
    guacamole_image_id = "<Ubuntu 22.04 image ID>"
    guacamole_flavor_id = "<flavor ID>"
    ```
-3. `make plan-dev` then `make apply-dev`
+3. `make plan-<env>` then `make apply-<env>`
 4. Attach each block volume to its Guacamole instance in OVH Console
 5. Add VM private IPs to `ansible/vars/sensitive.yml` (`sops ansible/vars/sensitive.yml` to edit)
 6. Ensure guacamole hostnames are in `freeipa_managed_hosts` in `freeipa-server.yml`, then `make ansible-freeipa`

@@ -3,12 +3,21 @@ name: Terraform Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - 'terraform/**'
+      - 'scripts/ci-deploy.sh'
+  workflow_dispatch:
+    inputs:
+      deploy_prod:
+        description: 'Deploy to prod'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
-  deploy:
+  deploy-dev:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -27,6 +36,28 @@ jobs:
           terraform_version: "1.5.7"
       - uses: mdgreenwald/mozilla-sops-action@d9714e521cbaecdae64a89d2fdd576dd2aa97056 # v1.6.0
       - run: ./scripts/ci-deploy.sh ${{ matrix.module }} dev
+        env:
+          SOPS_AGE_KEY: ${{ secrets.HDC_OVH_SOPS_AGE_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.HDC_OVH_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.HDC_OVH_AWS_SECRET_ACCESS_KEY }}
+
+  deploy-prod:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_prod
+    runs-on: ubuntu-latest
+    environment: prod
+    concurrency:
+      group: terraform-infra-prod
+      cancel-in-progress: false
+    env:
+      TF_INPUT: 0
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: "1.5.7"
+      - uses: mdgreenwald/mozilla-sops-action@d9714e521cbaecdae64a89d2fdd576dd2aa97056 # v1.6.0
+      # infra only — keycloak/kong prod tfvars not yet created
+      - run: ./scripts/ci-deploy.sh infra prod
         env:
           SOPS_AGE_KEY: ${{ secrets.HDC_OVH_SOPS_AGE_KEY }}
           AWS_ACCESS_KEY_ID: ${{ secrets.HDC_OVH_AWS_ACCESS_KEY_ID }}

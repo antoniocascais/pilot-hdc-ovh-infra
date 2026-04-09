@@ -5,8 +5,6 @@
   import_playbook: ssh-hardening.yml
 - name: Nginx TLS passthrough
   import_playbook: nginx-stream-passthrough.yml
-- name: Prod coming soon page
-  import_playbook: nginx-coming-soon-prod.yml
 - name: Certbot TLS setup
   import_playbook: certbot-setup.yml
 # NFS server not included — run separately via: make ansible-nfs

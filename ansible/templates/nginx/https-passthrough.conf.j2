@@ -1,0 +1,32 @@
+{% if has_freeipa | bool %}
+# SNI routing: inspect TLS ClientHello to route by hostname
+map $ssl_preread_server_name $https_backend {
+    {{ freeipa_hostname }}  freeipa_https;
+    default                  k8s_https;
+}
+{% endif %}
+
+upstream k8s_https {
+{% for node in nginx_hosts[nginx_env].k8s_nodes %}
+    server {{ node }}:30443 max_fails=3 fail_timeout=30s;
+{% endfor %}
+}
+
+{% if has_freeipa | bool %}
+upstream freeipa_https {
+    server 127.0.0.1:8443;
+}
+{% endif %}
+
+server {
+    listen 443;
+    listen [::]:443;
+{% if has_freeipa | bool %}
+    proxy_pass $https_backend;
+    ssl_preread on;
+{% else %}
+    proxy_pass k8s_https;
+{% endif %}
+    proxy_timeout 3600s;
+    proxy_connect_timeout 60s;
+}

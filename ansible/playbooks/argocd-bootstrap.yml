@@ -6,8 +6,9 @@
   vars_files:
     - ../vars/argocd.yml
   vars:
-    kubeconfig: "{{ argocd_kubeconfig }}"
-    gitops_path: "{{ gitops_repo_path }}/clusters/dev/apps/argo-cd"
+    argocd_env: "{{ argocd_env | default('dev') }}"
+    kubeconfig: "{{ argocd_kubeconfig[argocd_env] }}"
+    gitops_path: "{{ gitops_repo_path }}/clusters/{{ argocd_env }}/apps/argo-cd"
 
   tasks:
     - name: Verify GitOps repo values.yaml exists
@@ -39,7 +40,6 @@
       tempfile:
         state: directory
         suffix: argocd
-        mode: "0700"
       register: temp_dir
 
     - name: Render Argo CD Helm templates
@@ -87,19 +87,19 @@
 
     - name: Verify root-app.yaml exists
       stat:
-        path: "{{ gitops_repo_path }}/clusters/dev/root-app.yaml"
+        path: "{{ gitops_repo_path }}/clusters/{{ argocd_env }}/root-app.yaml"
       register: root_app_file
 
     - name: Fail if root-app.yaml does not exist
       fail:
-        msg: "root-app.yaml not found at {{ gitops_repo_path }}/clusters/dev/root-app.yaml. Please ensure the GitOps repository is properly configured."
+        msg: "root-app.yaml not found at {{ gitops_repo_path }}/clusters/{{ argocd_env }}/root-app.yaml. Please ensure the GitOps repository is properly configured."
       when: not root_app_file.stat.exists
 
     - name: Apply root Application
       kubernetes.core.k8s:
         kubeconfig: "{{ kubeconfig }}"
         state: present
-        src: "{{ gitops_repo_path }}/clusters/dev/root-app.yaml"
+        src: "{{ gitops_repo_path }}/clusters/{{ argocd_env }}/root-app.yaml"
 
     - name: Display admin password retrieval command
       debug:

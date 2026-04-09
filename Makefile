@@ -53,7 +53,7 @@ ansible-guacamole:
 	./ansible/run.sh ansible-playbook playbooks/guacamole-vm.yml $(EXTRA_ARGS)
 
 ansible-argocd-bootstrap: ansible-deps
-	./ansible/run.sh ansible-playbook playbooks/argocd-bootstrap.yml
+	./ansible/run.sh ansible-playbook playbooks/argocd-bootstrap.yml $(EXTRA_ARGS)
 
 ansible-lint:
 	docker run --rm -v "$$(pwd)":/work -w /work python:3.12-slim bash -c \

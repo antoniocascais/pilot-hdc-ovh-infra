@@ -1,16 +1,21 @@
 ---
 - name: Configure nginx TLS passthrough to ingress-nginx
-  hosts: nginx-dev
+  hosts: nginx
   become: true
   vars:
-    freeipa_hostname: ldap.dev.hdc.ebrains.eu
-    freeipa_cert_name: ldap-dev
+    # FreeIPA SNI routing + L7 proxy only when server IP is configured
+    has_freeipa: "{{ freeipa_hostname is defined and nginx_env in (freeipa_hosts | default({})) }}"
   tasks:
+    - name: Skip host if K8s nodes not configured
+      meta: end_host
+      when: nginx_hosts[nginx_env].k8s_nodes is not defined
+
     - name: Install nginx stream module
       apt:
         name: libnginx-mod-stream
         state: present
         update_cache: yes
+        cache_valid_time: 3600
 
     - name: Ensure stream.d directory exists
       file:
@@ -29,34 +34,10 @@
           }
       notify: Reload nginx
 
-    - name: Configure SNI-based TLS passthrough (port 443)
-      copy:
+    - name: Configure TLS passthrough (port 443)
+      template:
+        src: ../templates/nginx/https-passthrough.conf.j2
         dest: /etc/nginx/stream.d/https-passthrough.conf
-        content: |
-          # SNI routing: inspect TLS ClientHello to route by hostname
-          map $ssl_preread_server_name $https_backend {
-              {{ freeipa_hostname }}  freeipa_https;
-              default                  k8s_https;
-          }
-
-          upstream k8s_https {
-          {% for node in nginx_hosts.dev.k8s_nodes %}
-              server {{ node }}:30443 max_fails=3 fail_timeout=30s;
-          {% endfor %}
-          }
-
-          upstream freeipa_https {
-              server 127.0.0.1:8443;
-          }
-
-          server {
-              listen 443;
-              listen [::]:443;
-              proxy_pass $https_backend;
-              ssl_preread on;
-              proxy_timeout 3600s;
-              proxy_connect_timeout 60s;
-          }
       notify: Reload nginx
 
     - name: Remove old k8s-only stream config
@@ -70,7 +51,7 @@
         dest: /etc/nginx/sites-available/default
         content: |
           upstream k8s_http {
-          {% for node in nginx_hosts.dev.k8s_nodes %}
+          {% for node in nginx_hosts[nginx_env].k8s_nodes %}
               server {{ node }}:30080 max_fails=3 fail_timeout=30s;
           {% endfor %}
           }
@@ -103,17 +84,20 @@
       notify: Reload nginx
 
     # --- FreeIPA L7 reverse proxy (LE cert for HSTS compatibility) ---
+    # Only deployed when freeipa_hosts[nginx_env] is configured in sensitive.yml
 
     - name: Create certbot webroot directory
       file:
         path: /var/www/certbot
         state: directory
         mode: "0755"
+      when: has_freeipa | bool
 
     - name: Check if LE cert exists
       stat:
         path: /etc/letsencrypt/live/{{ freeipa_cert_name }}/fullchain.pem
       register: le_cert
+      when: has_freeipa | bool
 
     - name: Deploy HTTP-only config for initial certbot
       copy:
@@ -132,7 +116,7 @@
                   return 301 https://$host$request_uri;
               }
           }
-      when: not le_cert.stat.exists
+      when: (has_freeipa | bool) and not (le_cert.stat.exists | default(false))
       notify: Reload nginx
 
     - name: Enable FreeIPA site
@@ -140,6 +124,7 @@
         src: /etc/nginx/sites-available/freeipa-ldap.conf
         dest: /etc/nginx/sites-enabled/freeipa-ldap.conf
         state: link
+      when: has_freeipa | bool
       notify: Reload nginx
 
     - name: Flush handlers before certbot
@@ -149,6 +134,7 @@
       apt:
         name: certbot
         state: present
+      when: has_freeipa | bool
 
     - name: Obtain LE certificate for FreeIPA
       command: >
@@ -162,12 +148,14 @@
         -d {{ freeipa_hostname }}
       register: certbot_result
       changed_when: "'Certificate not yet due for renewal' not in certbot_result.stdout"
+      when: has_freeipa | bool
 
     - name: Enable certbot auto-renewal timer
       systemd:
         name: certbot.timer
         state: started
         enabled: true
+      when: has_freeipa | bool
 
     - name: Deploy FreeIPA HTTPS reverse proxy config
       copy:
@@ -195,7 +183,7 @@
               ssl_certificate_key /etc/letsencrypt/live/{{ freeipa_cert_name }}/privkey.pem;
 
               location / {
-                  proxy_pass https://{{ freeipa_hosts.dev.ip }};
+                  proxy_pass https://{{ freeipa_hosts[nginx_env].ip }};
                   proxy_ssl_verify off;
                   proxy_set_header Host $host;
                   proxy_set_header X-Real-IP $remote_addr;
@@ -203,6 +191,7 @@
                   proxy_set_header X-Forwarded-Proto https;
               }
           }
+      when: has_freeipa | bool
       notify: Reload nginx
 
   handlers:
