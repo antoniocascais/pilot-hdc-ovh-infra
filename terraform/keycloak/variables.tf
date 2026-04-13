@@ -40,6 +40,7 @@ variable "test_admin_username" {
 variable "test_admin_password" {
   type      = string
   sensitive = true
+  default   = ""
 }
 
 variable "create_test_user" {
