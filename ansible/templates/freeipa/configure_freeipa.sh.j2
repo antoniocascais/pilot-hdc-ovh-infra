@@ -2,7 +2,7 @@
 set -euo pipefail
 
 export KRB5CCNAME=FILE:/tmp/krb5cc_configure
-echo '{{ freeipa_admin_password }}' | kinit admin
+echo '{{ freeipa_admin_password[freeipa_env] }}' | kinit admin
 
 # Create HBAC services (global, only needs to run once)
 for svc in xrdp xrdp-sesman; do

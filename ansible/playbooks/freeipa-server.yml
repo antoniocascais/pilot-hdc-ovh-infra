@@ -179,7 +179,7 @@
     - name: Wait for FreeIPA to initialize
       command: >
         docker exec {{ freeipa_container_name }}
-        bash -c 'echo {{ freeipa_admin_password }} | kinit admin && kdestroy'
+        bash -c 'echo {{ freeipa_admin_password[freeipa_env] }} | kinit admin && kdestroy'
       register: ipa_check
       retries: 60
       delay: 10

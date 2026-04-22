@@ -2,7 +2,7 @@
 set -euo pipefail
 
 export KRB5CCNAME=FILE:/tmp/krb5cc_sudo_mgmt
-echo '{{ freeipa_admin_password }}' | kinit admin
+echo '{{ freeipa_admin_password[freeipa_env] }}' | kinit admin
 
 {% for sudo_user in sudo_users %}
 echo "Configuring sudo rules for {{ sudo_user.user }}"

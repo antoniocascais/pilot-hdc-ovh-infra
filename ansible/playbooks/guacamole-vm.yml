@@ -257,7 +257,7 @@
         --domain={{ freeipa_domain }}
         --realm={{ freeipa_realm }}
         --principal=admin
-        --password='{{ freeipa_admin_password }}'
+        --password='{{ freeipa_admin_password[freeipa_env] }}'
         --force-join
       args:
         creates: /etc/ipa/default.conf
